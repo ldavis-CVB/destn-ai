@@ -5,6 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Download TextBlob corpora (needed at runtime)
+RUN python -m textblob.download_corpora
+
 COPY dashboard/ dashboard/
 COPY pipeline/ pipeline/
 COPY data/.gitkeep data/
