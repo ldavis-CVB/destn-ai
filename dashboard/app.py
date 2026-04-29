@@ -986,12 +986,24 @@ elif page == "citations":
         latest_date  =("run_date",        "max"),
     ).reset_index()
 
-    # Bring in latest row's response/citations for the detail panel
-    latest = (filt.sort_values("run_date", ascending=False)
-                  .groupby("query").first().reset_index()
-              [["query","source","full_response","raw_snippet",
-                "brand_terms","citations","cited_urls","competitors","our_destinations"]])
-    agg = agg.merge(latest, on="query", how="left")
+    # Build a query -> best raw row lookup for the detail panel
+    # Use most recent row but merge citations from all runs
+    def _build_lookup_row(grp):
+        best = grp.sort_values("run_date", ascending=False).iloc[0].copy()
+        # Merge citations from all rows for this query
+        all_cits = []
+        for cits in grp["citations"]:
+            if isinstance(cits, list): all_cits.extend(cits)
+        best["citations"] = list(dict.fromkeys(all_cits))  # deduplicated
+        # Prefer cited row's response if available
+        cited_rows = grp[grp["mentioned"] == 1]
+        if not cited_rows.empty:
+            cr = cited_rows.sort_values("run_date", ascending=False).iloc[0]
+            if _safe_text(cr.get("full_response")):
+                best["full_response"] = cr["full_response"]
+                best["brand_terms"]   = cr["brand_terms"]
+        return best
+    latest_lookup = {q: _build_lookup_row(grp) for q, grp in filt.groupby("query")}
 
     # Post-agg status filter
     if status_f == "Cited only":
@@ -1038,7 +1050,8 @@ elif page == "citations":
                 "Status":       ["Cited" if c > 0 else "Not cited" for c in agg["cited_count"]],
                 "Query":        agg["query"].tolist(),
                 "Cited":        [f"{int(c)}/{int(t)}" for c, t in zip(agg["cited_count"], agg["total_runs"])],
-                "Destinations": [_dest_str(d) for d in agg["our_destinations"]],
+                "Destinations": [_dest_str(latest_lookup[q].get("our_destinations", {}) if q in latest_lookup else {})
+                                 for q in agg["query"]],
                 "Sentiment":    [_sent_label(s) for s in agg["avg_sentiment"]],
                 "Last Run":     agg["latest_date"].dt.strftime("%b %d").tolist(),
             })
@@ -1079,22 +1092,34 @@ elif page == "citations":
                 unsafe_allow_html=True
             )
         else:
-            row      = chosen_row
-            cited    = int(row.get("cited_count", row.get("mentioned", 0))) > 0
-            cited_ct = int(row.get("cited_count", 0))
-            total_ct = int(row.get("total_runs", 1))
-            src_lbl  = "Perplexity" if row.get("source") == "perplexity" else "ChatGPT"
-            all_urls = row.get("citations", [])
-            our_urls = row.get("cited_urls", [])
-            comp_hits     = [k for k,v in row["competitors"].items() if v]
-            resp_text, is_full = _resp(row)
-            brand_terms_row    = row.get("brand_terms") or []
+            agg_row  = chosen_row
+            raw_row  = latest_lookup.get(agg_row["query"], agg_row)
+            cited    = int(agg_row.get("cited_count", 0)) > 0
+            cited_ct = int(agg_row.get("cited_count", 0))
+            total_ct = int(agg_row.get("total_runs", 1))
+            src_lbl  = "Perplexity" if raw_row.get("source") == "perplexity" else "ChatGPT"
+            def _safe_list(val):
+                if val is None: return []
+                if isinstance(val, list): return val
+                if isinstance(val, str) and val.strip(): return json.loads(val)
+                return []
+            def _safe_dict(val):
+                if val is None: return {}
+                if isinstance(val, dict): return val
+                if isinstance(val, str) and val.strip(): return json.loads(val)
+                return {}
+            all_urls  = _safe_list(raw_row.get("citations"))
+            our_urls  = _safe_list(raw_row.get("cited_urls"))
+            comp_hits = [k for k,v in _safe_dict(raw_row.get("competitors")).items() if v]
+            resp_text, is_full = _resp(raw_row)
+            brand_terms_row    = _safe_list(raw_row.get("brand_terms"))
+            row = raw_row  # use raw row for remaining detail panel references
             resp_highlighted   = _highlight_brands(resp_text, brand_terms_row)
             s_col    = "#166534" if cited else "#6b7280"
             s_bg     = "#dcfce7" if cited else "#f3f4f6"
             cat_tag  = _query_cat(row["query"]).title()
-            _raw_sent = row.get("avg_sentiment") or row.get("sentiment_score")
-            sent_score = float(_raw_sent) if _raw_sent and str(_raw_sent).lower() not in ("nan","none","") else _sentiment(_safe_text(row.get("full_response")) or _safe_text(row.get("raw_snippet","")))
+            _raw_sent = agg_row.get("avg_sentiment") or raw_row.get("sentiment_score")
+            sent_score = float(_raw_sent) if _raw_sent and str(_raw_sent).lower() not in ("nan","none","") else _sentiment(_safe_text(raw_row.get("full_response")) or _safe_text(raw_row.get("raw_snippet","")))
             sent_lbl_r = _sent_label(sent_score)
             sent_bg_r, sent_fg_r = _sent_color(sent_score)
 
@@ -1168,7 +1193,7 @@ elif page == "citations":
                 st.caption("No sources captured for this response.")
 
             # Destination mentions
-            dest_hits_row = row.get("our_destinations", {}) or {}
+            dest_hits_row = _safe_dict(raw_row.get("our_destinations"))
             dest_mentioned = [k for k, v in dest_hits_row.items() if v]
             if dest_mentioned:
                 DEST_COLORS = {
@@ -1336,6 +1361,61 @@ elif page == "citations":
           {_todos_html}
         </div>
         """, unsafe_allow_html=True)
+
+    # ── Top Websites Citing Our Destinations ─────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="card-title">Top Websites Mentioning Our Destinations</div>', unsafe_allow_html=True)
+
+    from urllib.parse import urlparse
+    domain_data = {}
+    for _, row in probe_df.iterrows():
+        cits = row.get("citations", [])
+        if not isinstance(cits, list): continue
+        dests = row.get("our_destinations", {})
+        if not isinstance(dests, dict): continue
+        dest_list = [k for k, v in dests.items() if v]
+        for url in cits:
+            try:
+                domain = urlparse(url).netloc.replace("www.", "")
+                if not domain: continue
+                if domain not in domain_data:
+                    domain_data[domain] = {"appearances": 0, "destinations": set(), "queries": set(), "urls": []}
+                domain_data[domain]["appearances"] += 1
+                domain_data[domain]["destinations"].update(dest_list)
+                domain_data[domain]["queries"].add(row.get("query",""))
+                if url not in domain_data[domain]["urls"]:
+                    domain_data[domain]["urls"].append(url)
+            except Exception:
+                continue
+
+    if domain_data:
+        src_rows = [
+            {
+                "Domain":       d,
+                "Appearances":  v["appearances"],
+                "Destinations": ", ".join(sorted(v["destinations"])) or "—",
+                "Queries":      len(v["queries"]),
+                "Sample URL":   v["urls"][0] if v["urls"] else "",
+            }
+            for d, v in domain_data.items()
+        ]
+        src_df = pd.DataFrame(src_rows).sort_values("Appearances", ascending=False).reset_index(drop=True)
+        st.dataframe(
+            src_df,
+            hide_index=True,
+            use_container_width=True,
+            height=400,
+            column_config={
+                "Domain":       st.column_config.TextColumn("Domain",        width="medium"),
+                "Appearances":  st.column_config.NumberColumn("Appearances", width=110),
+                "Destinations": st.column_config.TextColumn("Destinations",  width="large"),
+                "Queries":      st.column_config.NumberColumn("Queries",     width=90),
+                "Sample URL":   st.column_config.LinkColumn("Sample URL",    width="large"),
+            },
+        )
+    else:
+        st.caption("No citation data yet — citations populate after probe runs.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ==============================================================================
