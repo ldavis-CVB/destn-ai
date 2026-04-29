@@ -773,9 +773,9 @@ else:
     total_ai=total_conv=eng_rate=n_sources=growth=avg_share=0
     src=pd.DataFrame()
 
-probe_total = len(probe_df)
-probe_cited = int((probe_df.groupby("query")["mentioned"].max() > 0).sum()) if probe_total else 0
-probe_rate  = probe_cited / probe_total * 100 if probe_total else 0
+probe_total  = len(probe_df)
+probe_cited  = int((probe_df.groupby("query")["mentioned"].max() > 0).sum()) if probe_total else 0
+probe_rate   = probe_df["mentioned"].sum() / probe_total * 100 if probe_total else 0
 
 
 # ── KPI helper ────────────────────────────────────────────────────────────────
