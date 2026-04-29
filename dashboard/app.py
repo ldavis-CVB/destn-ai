@@ -673,9 +673,17 @@ def load_probes(start_date: str, end_date: str):
 
 
 # ── Brand header ──────────────────────────────────────────────────────────────
-st.markdown("""
+_logo_path = Path(__file__).parent / "destin.ai logo.png"
+_logo_html = ""
+if _logo_path.exists():
+    _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
+    _logo_html = f'<img src="data:image/png;base64,{_logo_b64}" style="height:38px; mix-blend-mode:multiply; display:block;" alt="destn.ai">'
+else:
+    _logo_html = '<div class="brand-badge">destn.ai</div>'
+
+st.markdown(f"""
 <div class="top-nav">
-  <div class="brand-badge">destn.ai</div>
+  <div style="display:flex;align-items:center;">{_logo_html}</div>
   <div class="brand-sub">Wilmington &amp; Beaches CVB &nbsp;&mdash;&nbsp; AI Visibility Platform</div>
 </div>
 """, unsafe_allow_html=True)
