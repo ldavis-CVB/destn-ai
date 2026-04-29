@@ -146,12 +146,12 @@ st.markdown(f"""
 
 /* ── Brand header ─────────────────────────────────────── */
 .top-nav {{
-  background: {TEAL_DARK};
+  background: #ffffff;
   display: flex;
   align-items: center;
   padding: 0 32px;
   height: 52px;
-  border-bottom: 3px solid {BLUE};
+  border-bottom: 2px solid {GRAY_MID};
 }}
 .brand-badge {{
   background: {BLUE};
@@ -164,7 +164,7 @@ st.markdown(f"""
   margin-right: 10px;
 }}
 .brand-sub {{
-  color: rgba(255,255,255,0.55);
+  color: {MUTED};
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.4px;
@@ -677,7 +677,7 @@ _logo_path = Path(__file__).parent / "destin.ai logo.png"
 _logo_html = ""
 if _logo_path.exists():
     _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
-    _logo_html = f'<img src="data:image/png;base64,{_logo_b64}" style="height:38px; mix-blend-mode:multiply; display:block;" alt="destn.ai">'
+    _logo_html = f'<img src="data:image/png;base64,{_logo_b64}" style="height:38px; display:block;" alt="destn.ai">'
 else:
     _logo_html = '<div class="brand-badge">destn.ai</div>'
 
