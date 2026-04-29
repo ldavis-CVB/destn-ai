@@ -1,0 +1,31 @@
+# Secrets & credentials — NEVER commit these
+.env
+credentials/service_account.json
+credentials/token.pkl
+credentials/oauth_client.json
+
+# Database (large binary, managed via Railway volume)
+data/traffic.db
+data/*.db
+
+# Logs
+data/*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
+Thumbs.db
