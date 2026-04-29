@@ -585,17 +585,18 @@ def _extract_quote(text: str, score: float, max_len: int = 320) -> str:
 
 # ── Helper: query category ────────────────────────────────────────────────────
 def _query_cat(q: str) -> str:
-    """Classify query as local / regional / national."""
-    if q in QUERY_CATEGORIES:
-        return QUERY_CATEGORIES[q]
+    """Classify query as local / regional / national. Keywords checked first."""
     ql = q.lower()
+    # Local drive-market queries
     if any(s in ql for s in ["charlotte", "raleigh", "durham", "greensboro", "fayetteville",
                                "winston-salem", "chapel hill", "asheville", "piedmont",
                                "from atlanta", "road trip from", "driving distance"]):
         return "local"
-    if any(s in ql for s in ["north carolina", "nc beach", " nc "]):
+    # Regional NC queries
+    if any(s in ql for s in ["north carolina", "nc beach", " nc ", "nc coast"]):
         return "regional"
-    return "national"
+    # Fall back to QUERY_CATEGORIES dict, then national
+    return QUERY_CATEGORIES.get(q, "national")
 
 
 # ── Data loaders ──────────────────────────────────────────────────────────────
