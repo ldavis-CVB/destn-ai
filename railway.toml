@@ -7,3 +7,9 @@ healthcheckPath = "/"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+[[services]]
+name = "probe-bot"
+source = "."
+startCommand = "python pipeline/probe_bot.py"
+cronSchedule = "0 11 * * *"
