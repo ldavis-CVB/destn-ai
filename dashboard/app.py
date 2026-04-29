@@ -955,9 +955,9 @@ elif page == "citations":
             label_visibility="collapsed",
         )
 
-    # Source / Status / Date / Search filters
+    # Source / Status / Search filters
     with filter_cols:
-        fc1, fc2, fc3, fc4 = st.columns(4)
+        fc1, fc2, fc3 = st.columns(3)
         with fc1:
             src_f = st.selectbox("AI Source", ["All"] + sorted(probe_df["source"].unique().tolist()),
                                  label_visibility="collapsed")
@@ -965,42 +965,49 @@ elif page == "citations":
             status_f = st.selectbox("Status", ["All", "Cited only", "Gaps only"],
                                     label_visibility="collapsed")
         with fc3:
-            dates_avail = ["All dates"] + sorted(
-                probe_df["run_date"].dt.strftime("%b %d, %Y").unique().tolist(), reverse=True
-            )
-            date_f = st.selectbox("Date", dates_avail, label_visibility="collapsed")
-        with fc4:
             search_f = st.text_input("Search", placeholder="Filter queries...",
                                      label_visibility="collapsed")
 
-    # Apply filters
+    # Apply pre-agg filters
     filt = probe_df.copy()
-
-    # Category filter
     cat_map = {"Local Drive": "local", "NC State": "state", "National": "national"}
     if cat_filter != "All":
-        target_cat = cat_map[cat_filter]
-        filt = filt[filt["query"].apply(_query_cat) == target_cat]
-
+        filt = filt[filt["query"].apply(_query_cat) == cat_map[cat_filter]]
     if src_f != "All":
         filt = filt[filt["source"] == src_f]
-    if status_f == "Cited only":
-        filt = filt[filt["mentioned"] == 1]
-    elif status_f == "Gaps only":
-        filt = filt[filt["mentioned"] == 0]
-    if date_f != "All dates":
-        filt = filt[filt["run_date"].dt.strftime("%b %d, %Y") == date_f]
     if search_f:
         filt = filt[filt["query"].str.contains(search_f, case=False, na=False)]
 
-    filt = filt.sort_values(["mentioned","run_date"], ascending=[False,False]).reset_index(drop=True)
+    # ── Aggregate: one row per unique query ──────────────────────────────────
+    agg = filt.groupby("query").agg(
+        cited_count  =("mentioned",       "sum"),
+        total_runs   =("mentioned",       "count"),
+        avg_sentiment=("sentiment_score", "mean"),
+        latest_date  =("run_date",        "max"),
+    ).reset_index()
 
-    cited_n = int(filt["mentioned"].sum())
+    # Bring in latest row's response/citations for the detail panel
+    latest = (filt.sort_values("run_date", ascending=False)
+                  .groupby("query").first().reset_index()
+              [["query","source","full_response","raw_snippet",
+                "brand_terms","citations","cited_urls","competitors","our_destinations"]])
+    agg = agg.merge(latest, on="query", how="left")
+
+    # Post-agg status filter
+    if status_f == "Cited only":
+        agg = agg[agg["cited_count"] > 0]
+    elif status_f == "Gaps only":
+        agg = agg[agg["cited_count"] == 0]
+
+    agg = agg.sort_values(["cited_count","avg_sentiment"], ascending=[False,False]).reset_index(drop=True)
+
+    cited_n  = int((agg["cited_count"] > 0).sum())
+    total_n  = len(agg)
     st.markdown(
         f'<div style="font-size:0.75rem; color:{MUTED}; margin:8px 0 16px;">'
-        f'{len(filt)} queries &nbsp;&middot;&nbsp; '
+        f'{total_n} queries &nbsp;&middot;&nbsp; '
         f'<span style="color:#166534; font-weight:600;">{cited_n} cited</span> &nbsp;&middot;&nbsp; '
-        f'{len(filt)-cited_n} gaps</div>',
+        f'{total_n - cited_n} gaps</div>',
         unsafe_allow_html=True
     )
 
@@ -1026,19 +1033,17 @@ elif page == "citations":
                 hits = [DEST_ABBR.get(k, k) for k, v in d.items() if v]
                 return "  ".join(hits) if hits else "—"
 
-            # Build a clean display dataframe for the list
+            # Build aggregated display dataframe
             list_df = pd.DataFrame({
-                "Status":       ["Cited" if r else "Not cited" for r in filt["mentioned"]],
-                "Query":        filt["query"].tolist(),
-                "Destinations": [_dest_str(d) for d in filt["our_destinations"]],
-                "Sentiment":    [_sent_label(s) for s in filt["sentiment_score"]],
-                "Score":        filt["sentiment_score"].round(2).tolist(),
-                "Source":       ["Perplexity" if s == "perplexity" else "ChatGPT"
-                                 for s in filt["source"]],
-                "Date":         filt["run_date"].dt.strftime("%b %d").tolist(),
+                "Status":       ["Cited" if c > 0 else "Not cited" for c in agg["cited_count"]],
+                "Query":        agg["query"].tolist(),
+                "Cited":        [f"{int(c)}/{int(t)}" for c, t in zip(agg["cited_count"], agg["total_runs"])],
+                "Destinations": [_dest_str(d) for d in agg["our_destinations"]],
+                "Sentiment":    [_sent_label(s) for s in agg["avg_sentiment"]],
+                "Last Run":     agg["latest_date"].dt.strftime("%b %d").tolist(),
             })
 
-            st.caption(f"{len(filt)} queries  |  click a row to see the full AI response")
+            st.caption(f"{total_n} unique queries  |  click a row to see the latest AI response")
 
             event = st.dataframe(
                 list_df,
@@ -1050,18 +1055,16 @@ elif page == "citations":
                 column_config={
                     "Status":       st.column_config.TextColumn("Status",       width=90),
                     "Query":        st.column_config.TextColumn("Query",        width="large"),
+                    "Cited":        st.column_config.TextColumn("Cited",        width=75),
                     "Destinations": st.column_config.TextColumn("Destinations", width=110),
                     "Sentiment":    st.column_config.TextColumn("Sentiment",    width=90),
-                    "Score":        st.column_config.NumberColumn("Score",      width=65,
-                                        format="%.2f", min_value=-1.0, max_value=1.0),
-                    "Source":       st.column_config.TextColumn("Source",       width=100),
-                    "Date":         st.column_config.TextColumn("Date",         width=65),
+                    "Last Run":     st.column_config.TextColumn("Last Run",     width=75),
                 },
             )
 
             sel_rows = event.selection.rows
             if sel_rows:
-                chosen_row = filt.iloc[sel_rows[0]]
+                chosen_row = agg.iloc[sel_rows[0]]
             else:
                 chosen_row = None
 
@@ -1077,8 +1080,10 @@ elif page == "citations":
             )
         else:
             row      = chosen_row
-            cited    = bool(row["mentioned"])
-            src_lbl  = "Perplexity" if row["source"] == "perplexity" else "ChatGPT"
+            cited    = int(row.get("cited_count", row.get("mentioned", 0))) > 0
+            cited_ct = int(row.get("cited_count", 0))
+            total_ct = int(row.get("total_runs", 1))
+            src_lbl  = "Perplexity" if row.get("source") == "perplexity" else "ChatGPT"
             all_urls = row.get("citations", [])
             our_urls = row.get("cited_urls", [])
             comp_hits     = [k for k,v in row["competitors"].items() if v]
@@ -1088,8 +1093,8 @@ elif page == "citations":
             s_col    = "#166534" if cited else "#6b7280"
             s_bg     = "#dcfce7" if cited else "#f3f4f6"
             cat_tag  = _query_cat(row["query"]).title()
-            _raw_sent = row.get("sentiment_score")
-            sent_score = float(_raw_sent) if _raw_sent and str(_raw_sent).lower() not in ("nan","none","") and float(_raw_sent) != 0 else _sentiment(_safe_text(row.get("full_response")) or _safe_text(row.get("raw_snippet","")))
+            _raw_sent = row.get("avg_sentiment") or row.get("sentiment_score")
+            sent_score = float(_raw_sent) if _raw_sent and str(_raw_sent).lower() not in ("nan","none","") else _sentiment(_safe_text(row.get("full_response")) or _safe_text(row.get("raw_snippet","")))
             sent_lbl_r = _sent_label(sent_score)
             sent_bg_r, sent_fg_r = _sent_color(sent_score)
 
@@ -1099,7 +1104,7 @@ elif page == "citations":
               <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
                 <span style="background:{s_bg}; color:{s_col}; border-radius:999px;
                      padding:3px 12px; font-size:0.7rem; font-weight:700;">
-                  {"Cited" if cited else "Not Cited"}</span>
+                  {"Cited" if cited else "Not Cited"} &nbsp;{cited_ct}/{total_ct}</span>
                 <span style="background:{BLUE_PALE}; color:{BLUE2}; border-radius:999px;
                      padding:3px 12px; font-size:0.7rem; font-weight:700;">{src_lbl}</span>
                 <span style="background:{sent_bg_r}; color:{sent_fg_r}; border-radius:999px;
@@ -1108,7 +1113,7 @@ elif page == "citations":
                 <span style="background:#f0fdf4; color:#166534; border-radius:999px;
                      padding:3px 12px; font-size:0.7rem; font-weight:700;">{cat_tag}</span>
                 <span style="color:{MUTED}; font-size:0.7rem;">
-                  {row['run_date'].strftime('%b %d, %Y')}</span>
+                  Last run: {row.get('latest_date', row.get('run_date', '')).strftime('%b %d, %Y')}</span>
               </div>
               <div style="font-size:0.95rem; font-weight:700; color:{TEXT}; line-height:1.4;">
                 {row['query']}</div>
