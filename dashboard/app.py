@@ -3,13 +3,22 @@ destn.ai  --  AI Visibility Platform
 Wilmington & Beaches CVB
 """
 
-import json, sqlite3, sys, html as _html
+import json, sqlite3, sys, html as _html, base64, tempfile
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
 from datetime import datetime, timedelta, date as date_type
+import os as _os
+
+# ── Write GA4 credentials from env var if present (Railway deployment) ─────────
+_ga4_creds_b64 = _os.getenv("GA4_CREDENTIALS_B64")
+if _ga4_creds_b64:
+    _tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+    _tmp.write(base64.b64decode(_ga4_creds_b64))
+    _tmp.close()
+    _os.environ["GA4_CREDENTIALS_PATH"] = _tmp.name
 
 def _safe_text(val) -> str:
     """Return a clean string; treats NaN/None as empty."""
