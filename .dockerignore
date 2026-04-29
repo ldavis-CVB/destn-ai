@@ -1,0 +1,10 @@
+.git/
+.env
+data/*.db
+data/*.log
+credentials/
+__pycache__/
+*.pyc
+*.pyo
+.railwayignore
+SETUP.md
