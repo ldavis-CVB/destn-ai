@@ -600,7 +600,7 @@ def _query_cat(q: str) -> str:
 
 
 # ── Data loaders ──────────────────────────────────────────────────────────────
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def load_traffic(start_date: str, end_date: str):
     """start_date / end_date in YYYYMMDD format."""
     if not DB_PATH.exists():
@@ -621,7 +621,7 @@ def load_traffic(start_date: str, end_date: str):
     return df, sm
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def load_probes(start_date: str, end_date: str):
     """start_date / end_date in YYYY-MM-DD format."""
     if not DB_PATH.exists():
