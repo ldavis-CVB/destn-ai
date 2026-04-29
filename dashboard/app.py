@@ -65,8 +65,9 @@ except ImportError:
 # Allow importing from pipeline/
 sys.path.insert(0, str(Path(__file__).parent.parent / "pipeline"))
 try:
-    from queries import QUERY_CATEGORIES, OUR_DESTINATIONS
+    from queries import QUERY_CATEGORIES, OUR_DESTINATIONS, QUERIES as ACTIVE_QUERIES
 except ImportError:
+    ACTIVE_QUERIES    = []
     QUERY_CATEGORIES  = {}
     OUR_DESTINATIONS  = {
         "Wilmington":         ["wilmington"],
@@ -743,6 +744,9 @@ probe_end     = end_d.strftime("%Y-%m-%d")
 # ── Load data ─────────────────────────────────────────────────────────────────
 df, summary = load_traffic(traffic_start, traffic_end)
 probe_df    = load_probes(probe_start, probe_end)
+# Filter to only active queries so retired queries don't inflate counts
+if ACTIVE_QUERIES and not probe_df.empty:
+    probe_df = probe_df[probe_df["query"].isin(ACTIVE_QUERIES)]
 page        = st.session_state.page
 
 # Pre-compute traffic aggregates
