@@ -585,15 +585,16 @@ def _extract_quote(text: str, score: float, max_len: int = 320) -> str:
 
 # ── Helper: query category ────────────────────────────────────────────────────
 def _query_cat(q: str) -> str:
-    """Classify query as local / state / national."""
+    """Classify query as local / regional / national."""
     if q in QUERY_CATEGORIES:
         return QUERY_CATEGORIES[q]
     ql = q.lower()
-    if any(s in ql for s in ["charlotte", "raleigh", "durham", "greensboro",
+    if any(s in ql for s in ["charlotte", "raleigh", "durham", "greensboro", "fayetteville",
+                               "winston-salem", "chapel hill", "asheville", "piedmont",
                                "from atlanta", "road trip from", "driving distance"]):
         return "local"
     if any(s in ql for s in ["north carolina", "nc beach", " nc "]):
-        return "state"
+        return "regional"
     return "national"
 
 
@@ -768,7 +769,7 @@ else:
     src=pd.DataFrame()
 
 probe_total = len(probe_df)
-probe_cited = int(probe_df["mentioned"].sum()) if probe_total else 0
+probe_cited = int((probe_df.groupby("query")["mentioned"].max() > 0).sum()) if probe_total else 0
 probe_rate  = probe_cited / probe_total * 100 if probe_total else 0
 
 
@@ -892,7 +893,7 @@ elif page == "citations":
 
     c1,c2,c3,c4,c5 = st.columns(5)
     kpi(c1, f"{probe_rate:.1f}", "Mention Rate",    suffix="%")
-    kpi(c2, f"{probe_cited}/{probe_total}", "Cited / Total", accent=BLUE_LIGHT)
+    kpi(c2, f"{probe_cited}/60", "Cited / Queries", accent=BLUE_LIGHT)
 
     with c3:
         gauge_color = sent_acc
@@ -949,7 +950,7 @@ elif page == "citations":
     with toggle_col:
         cat_filter = st.radio(
             "Category",
-            ["All", "Local Drive", "NC State", "National"],
+            ["All", "Local Drive", "Regional NC", "National"],
             horizontal=True,
             key="cat_toggle",
             label_visibility="collapsed",
@@ -970,7 +971,7 @@ elif page == "citations":
 
     # Apply pre-agg filters
     filt = probe_df.copy()
-    cat_map = {"Local Drive": "local", "NC State": "state", "National": "national"}
+    cat_map = {"Local Drive": "local", "Regional NC": "regional", "National": "national"}
     if cat_filter != "All":
         filt = filt[filt["query"].apply(_query_cat) == cat_map[cat_filter]]
     if src_f != "All":
@@ -1129,7 +1130,7 @@ elif page == "citations":
               <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
                 <span style="background:{s_bg}; color:{s_col}; border-radius:999px;
                      padding:3px 12px; font-size:0.7rem; font-weight:700;">
-                  {"Cited" if cited else "Not Cited"} &nbsp;{cited_ct}/{total_ct}</span>
+                  {"Cited" if cited else "Not Cited"} &nbsp;{cited_ct}/60</span>
                 <span style="background:{BLUE_PALE}; color:{BLUE2}; border-radius:999px;
                      padding:3px 12px; font-size:0.7rem; font-weight:700;">{src_lbl}</span>
                 <span style="background:{sent_bg_r}; color:{sent_fg_r}; border-radius:999px;
@@ -1290,7 +1291,7 @@ elif page == "citations":
         total_runs = (probe_df.groupby("query").size().reset_index(name="total"))
         gap_raw = gap_raw.merge(total_runs, on="query", how="left")
         gap_raw["category"]  = gap_raw["query"].apply(_query_cat)
-        cat_w = {"local": 1.3, "state": 1.1, "national": 0.9}
+        cat_w = {"local": 1.3, "regional": 1.1, "national": 0.9}
         gap_raw["opp_score"] = (
             gap_raw["missed"] / gap_raw["total"].clip(lower=1) * 100
             * gap_raw["category"].map(cat_w).fillna(1.0)
@@ -1334,8 +1335,8 @@ elif page == "citations":
     if gap_sel is not None:
         blurb, todos = _content_suggestion(gap_sel["query"])
         cat_r    = gap_sel["category"]
-        cat_bg   = {"local":"#e0f2f1","state":"#e8f5e9","national":"#e3f2fd"}.get(cat_r,"#f5f5f5")
-        cat_fg   = {"local":"#00695c","state":"#2e7d32","national":"#1565c0"}.get(cat_r,"#555")
+        cat_bg   = {"local":"#e0f2f1","regional":"#e8f5e9","national":"#e3f2fd"}.get(cat_r,"#f5f5f5")
+        cat_fg   = {"local":"#00695c","regional":"#2e7d32","national":"#1565c0"}.get(cat_r,"#555")
         opp_r    = int(gap_sel["opp_score"])
 
         _todo_item = '<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid {gm};"><span style="width:16px;height:16px;border:2px solid {bl};border-radius:3px;flex-shrink:0;margin-top:2px;display:inline-block;"></span><span style="font-size:0.82rem;color:{tx};line-height:1.5;">{td}</span></div>'

@@ -43,7 +43,29 @@ COMPETITORS = {
 }
 
 QUERIES = [
-    # ── North Carolina beaches ─────────────────────────────────────────────
+    # ── LOCAL: Drive market queries (20) ──────────────────────────────────
+    "best beach from Charlotte NC",
+    "closest beach to Charlotte NC",
+    "best beach weekend from Charlotte NC",
+    "beaches within driving distance of Charlotte",
+    "best beach vacation from Raleigh NC",
+    "closest beach to Raleigh NC",
+    "best beach day trip from Raleigh NC",
+    "best beach getaway from Raleigh NC",
+    "best beach trip from Durham NC",
+    "closest beach to Durham NC",
+    "best beaches driving distance from Greensboro NC",
+    "best beach from Greensboro NC",
+    "best beach from Winston-Salem NC",
+    "closest beach to Winston-Salem NC",
+    "best beach from Fayetteville NC",
+    "closest beach to Fayetteville NC",
+    "best beach from Chapel Hill NC",
+    "best beach road trip from Asheville NC",
+    "best beach vacation from Charlotte",
+    "best beach trip from the NC piedmont",
+
+    # ── REGIONAL: North Carolina / state-level queries (20) ───────────────
     "best beaches in North Carolina",
     "best beach towns in North Carolina",
     "top NC beach destinations",
@@ -59,65 +81,38 @@ QUERIES = [
     "most popular North Carolina beaches",
     "best North Carolina beaches for couples",
     "best beach weekend getaway in North Carolina",
+    "best NC beach towns for nightlife",
+    "best NC beach towns for foodies",
+    "most charming small towns on the NC coast",
+    "best NC beaches for surfing",
+    "NC beach towns with a historic downtown",
 
-    # ── East Coast ─────────────────────────────────────────────────────────
+    # ── NATIONAL: East Coast / Southeast / broad US queries (20) ──────────
     "best beaches on the East Coast",
     "best beach towns on the East Coast",
     "top East Coast beach destinations",
     "most beautiful East Coast beaches",
     "best East Coast beaches for families",
     "underrated East Coast beach towns",
-    "best East Coast beach vacation spots",
     "best small beach towns on the East Coast",
     "best East Coast beaches for couples",
-    "East Coast beach towns with great food and nightlife",
-    "best East Coast beach destinations for a long weekend",
     "most charming beach towns on the East Coast",
-    "best beaches on the Atlantic Coast",
-    "affordable East Coast beach vacations",
-    "best East Coast beaches for surfing",
-
-    # ── Southeast / South ──────────────────────────────────────────────────
+    "best East Coast beach destinations for a long weekend",
     "best beaches in the South",
     "best beach towns in the Southeast",
-    "top beach destinations in the Southeast US",
-    "best southern beach vacations",
     "best beaches in the Southeast United States",
-    "most beautiful beaches in the Southeast",
-    "best beach getaways in the Southeast",
-    "best beach towns in the southern US",
     "underrated southern beach destinations",
-    "best coastal towns in the Southeast",
-    "best beaches for families in the South",
     "best southern beach towns for couples",
-
-    # ── Regional drive markets ─────────────────────────────────────────────
-    "best beach from Charlotte NC",
-    "closest beach to Charlotte NC",
-    "best beach vacation from Raleigh NC",
-    "closest beach to Raleigh NC",
-    "best beach trip from Durham NC",
-    "best beach road trip from Atlanta",
-    "best beach vacation from Charlotte",
-    "best beaches driving distance from Greensboro NC",
-
-    # ── General discovery ──────────────────────────────────────────────────
-    "best US beach towns to visit in 2025",
-    "most underrated beach destinations in America",
-    "best beach towns in the US for history and culture",
-    "best beach towns in the US for foodies",
     "best beach destinations for a bachelorette trip",
     "best beach towns for a girls trip",
-    "best beach towns for a guys trip",
     "best beach towns for a romantic getaway",
-    "best beach towns with great downtown areas",
     "best beach destinations for outdoor activities",
+    "best US beach towns to visit in 2025",
 ]
 
-# Category tags: "local" = drive-market queries, "state" = NC-specific, "national" = broader
+# Category tags: "local" = drive-market, "regional" = NC/state-level, "national" = broader US
 QUERY_CATEGORIES = {
-    **{q: "state"    for q in QUERIES[0:15]},   # North Carolina beaches
-    **{q: "national" for q in QUERIES[15:42]},  # East Coast + Southeast/South
-    **{q: "local"    for q in QUERIES[42:50]},  # Regional drive markets
-    **{q: "national" for q in QUERIES[50:]},    # General US discovery
+    **{q: "local"    for q in QUERIES[0:20]},   # Drive market queries
+    **{q: "regional" for q in QUERIES[20:40]},  # NC / state-level queries
+    **{q: "national" for q in QUERIES[40:60]},  # East Coast / Southeast / broad US
 }
