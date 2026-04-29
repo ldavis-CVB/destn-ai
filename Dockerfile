@@ -11,5 +11,4 @@ COPY data/.gitkeep data/
 
 EXPOSE 8501
 
-SHELL ["/bin/bash", "-c"]
-CMD streamlit run dashboard/app.py --server.port ${PORT:-8501} --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection false
+CMD ["streamlit", "run", "dashboard/app.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true", "--server.enableCORS", "false", "--server.enableXsrfProtection", "false"]
