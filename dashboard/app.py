@@ -1308,6 +1308,9 @@ elif page == "citations":
         cat_fg   = {"local":"#00695c","state":"#2e7d32","national":"#1565c0"}.get(cat_r,"#555")
         opp_r    = int(gap_sel["opp_score"])
 
+        _todo_item = '<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid {gm};"><span style="width:16px;height:16px;border:2px solid {bl};border-radius:3px;flex-shrink:0;margin-top:2px;display:inline-block;"></span><span style="font-size:0.82rem;color:{tx};line-height:1.5;">{td}</span></div>'
+        _todos_html = "".join(_todo_item.format(gm=GRAY_MID, bl=BLUE, tx=TEXT, td=todo) for todo in todos)
+
         st.markdown(f"""
         <div style="background:{WHITE}; border:1px solid {GRAY_MID}; border-left:4px solid {BLUE};
              border-radius:12px; padding:20px 24px; margin-top:6px;">
@@ -1325,13 +1328,7 @@ elif page == "citations":
             {blurb}</div>
           <div style="font-size:0.72rem; font-weight:800; text-transform:uppercase;
                letter-spacing:0.9px; color:{MUTED}; margin-bottom:10px;">Action Items</div>
-          {''.join(f"""
-          <div style="display:flex; align-items:flex-start; gap:10px; padding:7px 0;
-               border-bottom:1px solid {GRAY_MID};">
-            <span style="width:16px; height:16px; border:2px solid {BLUE}; border-radius:3px;
-                 flex-shrink:0; margin-top:2px; display:inline-block;"></span>
-            <span style="font-size:0.82rem; color:{TEXT}; line-height:1.5;">{todo}</span>
-          </div>""" for todo in todos)}
+          {_todos_html}
         </div>
         """, unsafe_allow_html=True)
 
