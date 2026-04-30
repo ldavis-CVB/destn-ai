@@ -15,6 +15,11 @@ import sqlite3
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env so GA4_CREDENTIALS_PATH / GA4_PROPERTY_ID are available locally
+load_dotenv(Path(__file__).parent.parent / ".env")
+
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import (
     RunReportRequest,
@@ -51,12 +56,23 @@ def get_client() -> BetaAnalyticsDataClient:
             scopes=["https://www.googleapis.com/auth/analytics.readonly"],
         )
         print(f"  Using service account: {creds_path}")
-    else:
-        # Local dev fallback — requires interactive OAuth setup
-        from oauth_setup import get_oauth_credentials
-        creds = get_oauth_credentials()
-        print("  Using OAuth credentials (local dev)")
+        return BetaAnalyticsDataClient(credentials=creds)
 
+    # OAuth token stored as base64 env var (Railway)
+    oauth_b64 = os.getenv("GA4_OAUTH_TOKEN_B64")
+    if oauth_b64:
+        import pickle
+        from google.auth.transport.requests import Request
+        creds = pickle.loads(base64.b64decode(oauth_b64))
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        print("  Using OAuth credentials (from env var)")
+        return BetaAnalyticsDataClient(credentials=creds)
+
+    # Local dev — uses credentials/token.pkl
+    from oauth_setup import get_oauth_credentials
+    creds = get_oauth_credentials()
+    print("  Using OAuth credentials (local dev)")
     return BetaAnalyticsDataClient(credentials=creds)
 
 
