@@ -13,4 +13,4 @@ COPY data/.gitkeep data/
 
 EXPOSE 8080
 
-CMD ["/bin/sh", "-c", "echo PORT=$PORT && python -c 'import streamlit,pandas,plotly,textblob,openai; print(\"imports OK\")' 2>&1 && python -m streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection false 2>&1"]
+CMD ["/bin/sh", "-c", "python -m streamlit run dashboard/test_app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection false"]
