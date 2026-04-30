@@ -2,7 +2,7 @@
 
 DB_PATH="${DB_PATH:-/app/data/traffic.db}"
 
-# If no probe data, seed the DB in the background so Streamlit starts immediately
+# ── Probe bot: seed DB on first run ──────────────────────────────────────────
 python -c "
 import sqlite3, sys
 try:
@@ -12,7 +12,13 @@ try:
     sys.exit(0 if count > 0 else 1)
 except:
     sys.exit(1)
-" 2>/dev/null || (echo "==> Seeding DB in background..." && python pipeline/probe_bot.py &)
+" 2>/dev/null || (echo "==> Seeding probe DB in background..." && python pipeline/probe_bot.py &)
+
+# ── GA4 sync: run if service account credentials are available ────────────────
+if [ -n "$GA4_CREDENTIALS_B64" ] || [ -n "$GA4_CREDENTIALS_PATH" ]; then
+    echo "==> Syncing GA4 data in background..."
+    python pipeline/ga4_client.py &
+fi
 
 exec python -m streamlit run dashboard/app.py \
     --server.port "$PORT" \
