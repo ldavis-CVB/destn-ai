@@ -13,4 +13,7 @@ COPY data/.gitkeep data/
 
 EXPOSE 8080
 
-CMD ["/bin/sh", "-c", "python -m streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection false"]
+COPY start.sh .
+RUN sed -i 's/\r//' start.sh && chmod +x start.sh
+
+CMD ["/bin/sh", "start.sh"]
