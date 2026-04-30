@@ -13,4 +13,4 @@ COPY data/.gitkeep data/
 
 EXPOSE 8080
 
-CMD ["/bin/sh", "-c", "python -m streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection false"]
+CMD ["/bin/sh", "-c", "echo '==> PORT='$PORT && python -m streamlit run dashboard/app.py --server.port ${PORT:-8080} --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection false 2>&1"]
