@@ -58,14 +58,21 @@ def get_client() -> BetaAnalyticsDataClient:
         print(f"  Using service account: {creds_path}")
         return BetaAnalyticsDataClient(credentials=creds)
 
-    # OAuth token stored as base64 env var (Railway)
+    # OAuth token stored as base64-encoded JSON (Railway)
     oauth_b64 = os.getenv("GA4_OAUTH_TOKEN_B64")
     if oauth_b64:
-        import pickle
+        from google.oauth2.credentials import Credentials
         from google.auth.transport.requests import Request
-        creds = pickle.loads(base64.b64decode(oauth_b64))
-        if creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+        data = json.loads(base64.b64decode(oauth_b64).decode())
+        creds = Credentials(
+            token=None,
+            refresh_token=data["refresh_token"],
+            token_uri=data["token_uri"],
+            client_id=data["client_id"],
+            client_secret=data["client_secret"],
+            scopes=data.get("scopes"),
+        )
+        creds.refresh(Request())
         print("  Using OAuth credentials (from env var)")
         return BetaAnalyticsDataClient(credentials=creds)
 
