@@ -1,10 +1,9 @@
 #!/bin/sh
-set -e
 
 DB_PATH="${DB_PATH:-/app/data/traffic.db}"
 
-# If database has no probe data, run the probe bot once to seed it
-if [ ! -f "$DB_PATH" ] || ! python -c "
+# If no probe data, seed the DB in the background so Streamlit starts immediately
+python -c "
 import sqlite3, sys
 try:
     conn = sqlite3.connect('$DB_PATH')
@@ -13,11 +12,7 @@ try:
     sys.exit(0 if count > 0 else 1)
 except:
     sys.exit(1)
-" 2>/dev/null; then
-    echo "==> No probe data found. Running probe bot to seed database..."
-    python pipeline/probe_bot.py
-    echo "==> Probe bot complete. Starting dashboard..."
-fi
+" 2>/dev/null || (echo "==> Seeding DB in background..." && python pipeline/probe_bot.py &)
 
 exec python -m streamlit run dashboard/app.py \
     --server.port "$PORT" \
