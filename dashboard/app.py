@@ -606,20 +606,23 @@ def load_traffic(start_date: str, end_date: str):
     """start_date / end_date in YYYYMMDD format."""
     if not DB_PATH.exists():
         return pd.DataFrame(), pd.DataFrame()
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql(
-        "SELECT * FROM ai_traffic WHERE date >= ? AND date <= ? ORDER BY date",
-        conn, params=(start_date, end_date)
-    )
-    sm = pd.read_sql(
-        "SELECT * FROM daily_summary WHERE date >= ? AND date <= ? ORDER BY date",
-        conn, params=(start_date, end_date)
-    )
-    conn.close()
-    for f in [df, sm]:
-        if not f.empty:
-            f["date"] = pd.to_datetime(f["date"], format="%Y%m%d")
-    return df, sm
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        df = pd.read_sql(
+            "SELECT * FROM ai_traffic WHERE date >= ? AND date <= ? ORDER BY date",
+            conn, params=(start_date, end_date)
+        )
+        sm = pd.read_sql(
+            "SELECT * FROM daily_summary WHERE date >= ? AND date <= ? ORDER BY date",
+            conn, params=(start_date, end_date)
+        )
+        conn.close()
+        for f in [df, sm]:
+            if not f.empty:
+                f["date"] = pd.to_datetime(f["date"], format="%Y%m%d")
+        return df, sm
+    except Exception:
+        return pd.DataFrame(), pd.DataFrame()
 
 
 @st.cache_data(ttl=300)
