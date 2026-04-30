@@ -601,6 +601,22 @@ def _query_cat(q: str) -> str:
 
 
 # ── Data loaders ──────────────────────────────────────────────────────────────
+def _today_probe_count() -> int:
+    """Return how many probe rows exist for today (no cache — always fresh)."""
+    if not DB_PATH.exists():
+        return 0
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        today = datetime.today().strftime("%Y-%m-%d")
+        n = conn.execute(
+            "SELECT COUNT(*) FROM probe_runs WHERE run_date = ?", (today,)
+        ).fetchone()[0]
+        conn.close()
+        return n
+    except Exception:
+        return 0
+
+
 @st.cache_data(ttl=300)
 def load_traffic(start_date: str, end_date: str):
     """start_date / end_date in YYYYMMDD format."""
@@ -625,7 +641,7 @@ def load_traffic(start_date: str, end_date: str):
         return pd.DataFrame(), pd.DataFrame()
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def load_probes(start_date: str, end_date: str):
     """start_date / end_date in YYYY-MM-DD format."""
     if not DB_PATH.exists():
@@ -893,8 +909,33 @@ elif page == "citations":
         '</div>', unsafe_allow_html=True
     )
 
+    # ── Live progress banner ──────────────────────────────────────────────────
+    _today_count = _today_probe_count()
+    _expected     = len(ACTIVE_QUERIES) * 2 if ACTIVE_QUERIES else 120  # ×2 sources
+    _pct          = min(int(_today_count / _expected * 100), 100)
+    _still_running = _today_count < _expected
+
+    hdr_col, btn_col = st.columns([5, 1])
+    with btn_col:
+        if st.button("↻ Refresh", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+    if _still_running and _today_count > 0:
+        with hdr_col:
+            st.markdown(
+                f'<div style="background:#fef9c3; border:1px solid #fde68a; border-radius:8px; '
+                f'padding:10px 16px; font-size:0.82rem; color:#713f12; margin-bottom:8px;">'
+                f'⏳ <b>Probe bot running…</b> &nbsp; {_today_count} / {_expected} queries collected '
+                f'({_pct}%) &mdash; refresh every minute to see new results.'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+    elif _today_count == 0:
+        with hdr_col:
+            st.info("No probe data yet. Run `py pipeline/probe_bot.py` to collect responses.")
+
     if probe_df.empty:
-        st.info("No probe data yet. Run `py pipeline/probe_bot.py` to collect responses.")
         st.stop()
 
     # KPIs
