@@ -617,6 +617,37 @@ def _today_probe_count() -> int:
         return 0
 
 
+def _probe_run_info() -> dict:
+    """Return metadata about the most recent probe run (no cache)."""
+    if not DB_PATH.exists():
+        return {}
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        row = conn.execute("""
+            SELECT run_date,
+                   COUNT(*)                        AS total_rows,
+                   COUNT(DISTINCT query)            AS unique_queries,
+                   COUNT(DISTINCT source)           AS sources,
+                   SUM(mentioned)                  AS cited,
+                   MAX(fetched_at)                 AS last_fetched
+            FROM probe_runs
+            WHERE run_date = (SELECT MAX(run_date) FROM probe_runs)
+        """).fetchone()
+        conn.close()
+        if row and row[0]:
+            return {
+                "run_date":       row[0],
+                "total_rows":     row[1],
+                "unique_queries": row[2],
+                "sources":        row[3],
+                "cited":          row[4],
+                "last_fetched":   row[5],
+            }
+    except Exception:
+        pass
+    return {}
+
+
 @st.cache_data(ttl=300)
 def load_traffic(start_date: str, end_date: str):
     """start_date / end_date in YYYYMMDD format."""
@@ -909,8 +940,9 @@ elif page == "citations":
         '</div>', unsafe_allow_html=True
     )
 
-    # ── Live progress banner ──────────────────────────────────────────────────
-    _today_count = _today_probe_count()
+    # ── Run status bar ────────────────────────────────────────────────────────
+    _today_count  = _today_probe_count()
+    _run_info     = _probe_run_info()
     _expected     = len(ACTIVE_QUERIES) * 2 if ACTIVE_QUERIES else 120  # ×2 sources
     _pct          = min(int(_today_count / _expected * 100), 100)
     _still_running = _today_count < _expected
@@ -921,19 +953,58 @@ elif page == "citations":
             st.cache_data.clear()
             st.rerun()
 
-    if _still_running and _today_count > 0:
-        with hdr_col:
+    with hdr_col:
+        if _run_info:
+            _rd       = _run_info["run_date"]
+            _uq       = _run_info["unique_queries"]
+            _src      = _run_info["sources"]
+            _ct       = _run_info["cited"]
+            _fetched  = _run_info["last_fetched"]
+            # Format the fetched_at timestamp nicely
+            try:
+                _ft = datetime.fromisoformat(_fetched).strftime("%b %d, %Y at %-I:%M %p UTC")
+            except Exception:
+                try:
+                    _ft = datetime.fromisoformat(_fetched).strftime("%b %d, %Y at %I:%M %p UTC")
+                except Exception:
+                    _ft = _fetched
+
+            if _still_running and _today_count > 0:
+                _banner_bg, _banner_border, _banner_color = "#fef9c3", "#fde68a", "#713f12"
+                _status_icon = "⏳"
+                _status_text = f"<b>Probe bot running…</b> &nbsp; {_today_count} / {_expected} queries collected ({_pct}%) — refresh to update"
+            else:
+                _banner_bg, _banner_border, _banner_color = "#f0fdf4", "#bbf7d0", "#166534"
+                _status_icon = "✅"
+                _status_text = f"<b>Last run complete</b>"
+
             st.markdown(
-                f'<div style="background:#fef9c3; border:1px solid #fde68a; border-radius:8px; '
-                f'padding:10px 16px; font-size:0.82rem; color:#713f12; margin-bottom:8px;">'
-                f'⏳ <b>Probe bot running…</b> &nbsp; {_today_count} / {_expected} queries collected '
-                f'({_pct}%) &mdash; refresh every minute to see new results.'
+                f'<div style="background:{_banner_bg}; border:1px solid {_banner_border}; '
+                f'border-radius:8px; padding:10px 16px; font-size:0.82rem; '
+                f'color:{_banner_color}; margin-bottom:8px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;">'
+                f'{_status_icon} &nbsp;{_status_text}'
+                f'<span style="opacity:0.7;">|</span>'
+                f'<span>🗓 <b>Run date:</b> {_rd}</span>'
+                f'<span style="opacity:0.7;">|</span>'
+                f'<span>🕐 <b>Last updated:</b> {_ft}</span>'
+                f'<span style="opacity:0.7;">|</span>'
+                f'<span>🔍 <b>Queries run:</b> {_uq}</span>'
+                f'<span style="opacity:0.7;">|</span>'
+                f'<span>🤖 <b>AI sources:</b> {_src}</span>'
+                f'<span style="opacity:0.7;">|</span>'
+                f'<span>📍 <b>Times cited:</b> {_ct}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
-    elif _today_count == 0:
-        with hdr_col:
-            st.info("No probe data yet. Run `py pipeline/probe_bot.py` to collect responses.")
+        elif _today_count == 0:
+            st.markdown(
+                f'<div style="background:#fef3c7; border:1px solid #fcd34d; border-radius:8px; '
+                f'padding:10px 16px; font-size:0.82rem; color:#92400e; margin-bottom:8px;">'
+                f'⏳ <b>Probe bot is collecting data…</b> &nbsp; '
+                f'First run takes 5–8 minutes. Hit ↻ Refresh above to check progress.'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
     if probe_df.empty:
         st.stop()
