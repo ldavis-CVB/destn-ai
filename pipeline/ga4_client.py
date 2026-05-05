@@ -258,6 +258,23 @@ def store_results(rows: list[dict], total_by_date: dict):
     return len(rows)
 
 
+STATUS_PATH = DB_PATH.parent / "ga4_status.json"
+
+
+def _write_status(status: str, rows: int = 0, error: str = ""):
+    """Write sync status to a JSON file the dashboard can read."""
+    STATUS_PATH.parent.mkdir(exist_ok=True)
+    STATUS_PATH.write_text(json.dumps({
+        "status":    status,
+        "rows":      rows,
+        "error":     error,
+        "synced_at": datetime.utcnow().isoformat(),
+        "property":  os.getenv("GA4_PROPERTY_ID", "260587494"),
+        "auth":      "oauth_env" if os.getenv("GA4_OAUTH_TOKEN_B64") else
+                     "service_account" if os.getenv("GA4_CREDENTIALS_B64") else "local",
+    }))
+
+
 def run_sync(property_id: str, conversion_event: str = "click"):
     print(f"Syncing GA4 property {property_id}...")
     try:
@@ -267,11 +284,13 @@ def run_sync(property_id: str, conversion_event: str = "click"):
         totals = fetch_total_sessions(client, property_id)
         count = store_results(rows, totals)
         print(f"Stored {count} AI traffic rows.")
+        _write_status("ok", rows=count)
         return count
     except Exception as e:
         import traceback
-        print(f"[GA4 ERROR] {e}")
-        traceback.print_exc()
+        tb = traceback.format_exc()
+        print(f"[GA4 ERROR] {e}\n{tb}")
+        _write_status("error", error=str(e))
         return 0
 
 
