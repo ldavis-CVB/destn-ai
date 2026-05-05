@@ -1557,36 +1557,33 @@ elif page == "traffic":
         f'<div class="page-sub">AI-referred sessions from GA4 &mdash; {start_d.strftime("%b %d")} to {end_d.strftime("%b %d, %Y")}</div>'
         '</div>', unsafe_allow_html=True
     )
-    # ── GA4 sync status ───────────────────────────────────────────────────────
+    # ── GA4 diagnostics ───────────────────────────────────────────────────────
     _ga4_status_path = DB_PATH.parent / "ga4_status.json"
-    if _ga4_status_path.exists():
-        try:
-            _gs = json.loads(_ga4_status_path.read_text())
-            _gs_time = _gs.get("synced_at","")
-            try:
-                _gs_time = datetime.fromisoformat(_gs_time).strftime("%b %d at %I:%M %p UTC")
-            except Exception:
-                pass
-            if _gs["status"] == "ok":
-                st.markdown(
-                    f'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;'
-                    f'padding:10px 16px;font-size:0.82rem;color:#166534;margin-bottom:12px;">'
-                    f'✅ <b>GA4 sync successful</b> &nbsp;|&nbsp; {_gs.get("rows",0):,} rows stored'
-                    f' &nbsp;|&nbsp; Last synced: {_gs_time}'
-                    f' &nbsp;|&nbsp; Auth: {_gs.get("auth","unknown")}</div>',
-                    unsafe_allow_html=True)
-            else:
-                st.markdown(
-                    f'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;'
-                    f'padding:10px 16px;font-size:0.82rem;color:#991b1b;margin-bottom:12px;">'
-                    f'❌ <b>GA4 sync failed</b> &nbsp;|&nbsp; Last attempt: {_gs_time}'
-                    f'<br><code style="font-size:0.75rem;">{_gs.get("error","unknown error")}</code></div>',
-                    unsafe_allow_html=True)
-        except Exception:
-            pass
+    with st.expander("🔧 GA4 Sync Diagnostics", expanded=True):
+        st.markdown(f"**DB path:** `{DB_PATH}`  \n**DB exists:** `{DB_PATH.exists()}`")
+        st.markdown(f"**GA4_OAUTH_TOKEN_B64 set:** `{bool(_os.getenv('GA4_OAUTH_TOKEN_B64'))}`")
+        st.markdown(f"**GA4_CREDENTIALS_B64 set:** `{bool(_os.getenv('GA4_CREDENTIALS_B64'))}`")
+        st.markdown(f"**GA4_PROPERTY_ID:** `{_os.getenv('GA4_PROPERTY_ID','not set')}`")
+        st.markdown(f"**ga4_status.json exists:** `{_ga4_status_path.exists()}`")
+        if _ga4_status_path.exists():
+            st.json(json.loads(_ga4_status_path.read_text()))
+        else:
+            st.warning("ga4_status.json not found — ga4_client.py has not run or crashed on import.")
+
+        if st.button("▶ Run GA4 Sync Now"):
+            import subprocess, sys
+            with st.spinner("Running GA4 sync…"):
+                result = subprocess.run(
+                    [sys.executable, "pipeline/ga4_client.py"],
+                    capture_output=True, text=True, cwd="/app"
+                )
+                st.code(result.stdout or "(no stdout)")
+                if result.stderr:
+                    st.code(result.stderr, language="")
+                st.cache_data.clear()
+                st.rerun()
 
     if df.empty:
-        st.warning("No GA4 traffic data yet — sync runs automatically at 8am ET weekdays, or check the status above.")
         st.stop()
 
     c1,c2,c3,c4 = st.columns(4)
