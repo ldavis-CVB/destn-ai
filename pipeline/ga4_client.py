@@ -36,29 +36,10 @@ DB_PATH = Path(__file__).parent.parent / "data" / "traffic.db"
 
 
 def get_client() -> BetaAnalyticsDataClient:
-    """Return an authenticated GA4 client, preferring service account over OAuth."""
-    creds_path = os.getenv("GA4_CREDENTIALS_PATH")
-
-    # If not set, try decoding the base64 env var (Railway)
-    if not creds_path:
-        b64 = os.getenv("GA4_CREDENTIALS_B64")
-        if b64:
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
-            tmp.write(base64.b64decode(b64))
-            tmp.close()
-            creds_path = tmp.name
-            os.environ["GA4_CREDENTIALS_PATH"] = creds_path  # cache for this process
-
-    if creds_path and Path(creds_path).exists():
-        from google.oauth2 import service_account
-        creds = service_account.Credentials.from_service_account_file(
-            creds_path,
-            scopes=["https://www.googleapis.com/auth/analytics.readonly"],
-        )
-        print(f"  Using service account: {creds_path}")
-        return BetaAnalyticsDataClient(credentials=creds)
-
-    # OAuth token stored as base64-encoded JSON (Railway)
+    """Return an authenticated GA4 client.
+    Priority: OAuth JSON env var → service account → local OAuth token.
+    """
+    # 1. OAuth token from env var (Railway) — checked FIRST
     oauth_b64 = os.getenv("GA4_OAUTH_TOKEN_B64")
     if oauth_b64:
         from google.oauth2.credentials import Credentials
@@ -73,13 +54,32 @@ def get_client() -> BetaAnalyticsDataClient:
             scopes=data.get("scopes"),
         )
         creds.refresh(Request())
-        print("  Using OAuth credentials (from env var)")
+        print("  Using OAuth credentials (GA4_OAUTH_TOKEN_B64)")
         return BetaAnalyticsDataClient(credentials=creds)
 
-    # Local dev — uses credentials/token.pkl
+    # 2. Service account from file path or base64
+    creds_path = os.getenv("GA4_CREDENTIALS_PATH")
+    if not creds_path:
+        b64 = os.getenv("GA4_CREDENTIALS_B64")
+        if b64:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+            tmp.write(base64.b64decode(b64))
+            tmp.close()
+            creds_path = tmp.name
+
+    if creds_path and Path(creds_path).exists():
+        from google.oauth2 import service_account
+        creds = service_account.Credentials.from_service_account_file(
+            creds_path,
+            scopes=["https://www.googleapis.com/auth/analytics.readonly"],
+        )
+        print(f"  Using service account: {creds_path}")
+        return BetaAnalyticsDataClient(credentials=creds)
+
+    # 3. Local dev — uses credentials/token.pkl
     from oauth_setup import get_oauth_credentials
     creds = get_oauth_credentials()
-    print("  Using OAuth credentials (local dev)")
+    print("  Using OAuth credentials (local token.pkl)")
     return BetaAnalyticsDataClient(credentials=creds)
 
 
@@ -270,8 +270,8 @@ def _write_status(status: str, rows: int = 0, error: str = ""):
         "error":     error,
         "synced_at": datetime.utcnow().isoformat(),
         "property":  os.getenv("GA4_PROPERTY_ID", "260587494"),
-        "auth":      "oauth_env" if os.getenv("GA4_OAUTH_TOKEN_B64") else
-                     "service_account" if os.getenv("GA4_CREDENTIALS_B64") else "local",
+        "auth":      "oauth_token" if os.getenv("GA4_OAUTH_TOKEN_B64") else
+                     "service_account" if (os.getenv("GA4_CREDENTIALS_B64") or os.getenv("GA4_CREDENTIALS_PATH")) else "local_token",
     }))
 
 
