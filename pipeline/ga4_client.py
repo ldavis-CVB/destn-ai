@@ -260,13 +260,19 @@ def store_results(rows: list[dict], total_by_date: dict):
 
 def run_sync(property_id: str, conversion_event: str = "click"):
     print(f"Syncing GA4 property {property_id}...")
-    init_db()
-    client = get_client()
-    rows = fetch_ai_traffic(client, property_id, conversion_event=conversion_event)
-    totals = fetch_total_sessions(client, property_id)
-    count = store_results(rows, totals)
-    print(f"Stored {count} AI traffic rows.")
-    return count
+    try:
+        init_db()
+        client = get_client()
+        rows = fetch_ai_traffic(client, property_id, conversion_event=conversion_event)
+        totals = fetch_total_sessions(client, property_id)
+        count = store_results(rows, totals)
+        print(f"Stored {count} AI traffic rows.")
+        return count
+    except Exception as e:
+        import traceback
+        print(f"[GA4 ERROR] {e}")
+        traceback.print_exc()
+        return 0
 
 
 if __name__ == "__main__":

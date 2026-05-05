@@ -1067,7 +1067,7 @@ elif page == "citations":
                         config={"displayModeBar": False}, key="sent_gauge")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    kpi(c4, str(probe_df["run_date"].nunique()), "Days Tracked", accent="#2e7d32")
+    kpi(c4, str(probe_df["run_date"].nunique()), "Probe Runs", accent="#2e7d32")
     kpi(c5, str(probe_df["source"].nunique()), "AI Tools Probed", accent="#7b1fa2")
 
     st.markdown("<br>", unsafe_allow_html=True)

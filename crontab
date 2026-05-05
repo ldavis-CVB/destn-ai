@@ -1,0 +1,8 @@
+# destn.ai scheduled jobs
+# Times are UTC — 7am ET (EDT) = 11:00 UTC, 8am ET = 12:00 UTC
+
+# Probe bot: run all 60 queries M-F at 7am ET
+0 11 * * 1-5 root . /etc/environment; cd /app && python pipeline/probe_bot.py >> /tmp/probe_cron.log 2>&1
+
+# GA4 sync: pull latest traffic data M-F at 8am ET
+0 12 * * 1-5 root . /etc/environment; cd /app && python pipeline/ga4_client.py >> /tmp/ga4_cron.log 2>&1
