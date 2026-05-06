@@ -947,9 +947,19 @@ elif page == "citations":
     _pct          = min(int(_today_count / _expected * 100), 100)
     _still_running = _today_count < _expected
 
-    hdr_col, btn_col = st.columns([5, 1])
+    hdr_col, btn_col, run_col = st.columns([5, 1, 1.4])
     with btn_col:
         if st.button("↻ Refresh", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+    with run_col:
+        if st.button("▶ Run Probe Now", use_container_width=True):
+            import subprocess, sys
+            with st.spinner("Running probe bot… this takes 5–8 minutes"):
+                subprocess.run(
+                    [sys.executable, "pipeline/probe_bot.py"],
+                    cwd="/app"
+                )
             st.cache_data.clear()
             st.rerun()
 
