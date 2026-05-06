@@ -695,18 +695,18 @@ def load_traffic(start_date: str, end_date: str):
     try:
         engine = get_engine()
         df = pd.read_sql(
-            _sa_text("SELECT * FROM ai_traffic WHERE date >= :s AND date <= :e ORDER BY date").bindparams(s=start_date, e=end_date),
+            f"SELECT * FROM ai_traffic WHERE date >= '{start_date}' AND date <= '{end_date}' ORDER BY date",
             engine
         )
         sm = pd.read_sql(
-            _sa_text("SELECT * FROM daily_summary WHERE date >= :s AND date <= :e ORDER BY date").bindparams(s=start_date, e=end_date),
+            f"SELECT * FROM daily_summary WHERE date >= '{start_date}' AND date <= '{end_date}' ORDER BY date",
             engine
         )
         for f in [df, sm]:
             if not f.empty:
-                f["date"] = pd.to_datetime(f["date"], format="%Y%m%d")
+                f["date"] = pd.to_datetime(f["date"], format="%Y%m%d", errors="coerce")
         return df, sm
-    except Exception:
+    except Exception as e:
         return pd.DataFrame(), pd.DataFrame()
 
 
@@ -716,7 +716,7 @@ def load_probes(start_date: str, end_date: str):
     engine = get_engine()
     try:
         df = pd.read_sql(
-            _sa_text("SELECT * FROM probe_runs WHERE run_date >= :s AND run_date <= :e ORDER BY run_date DESC, id").bindparams(s=start_date, e=end_date),
+            f"SELECT * FROM probe_runs WHERE run_date >= '{start_date}' AND run_date <= '{end_date}' ORDER BY run_date DESC, id",
             engine
         )
     except Exception:
@@ -1656,12 +1656,15 @@ elif page == "traffic":
         st.markdown(f"**GA4_OAUTH_TOKEN_B64 set:** `{bool(_os.getenv('GA4_OAUTH_TOKEN_B64'))}`")
         st.markdown(f"**GA4_CREDENTIALS_B64 set:** `{bool(_os.getenv('GA4_CREDENTIALS_B64'))}`")
         st.markdown(f"**GA4_PROPERTY_ID:** `{_os.getenv('GA4_PROPERTY_ID','not set')}`")
-        # Live row count from DB
+        # Live row count + sample dates from DB
         try:
             _eng = get_engine()
             _tc = pd.read_sql(_sa_text("SELECT COUNT(*) AS n FROM ai_traffic"), _eng).iloc[0]["n"]
             _sc = pd.read_sql(_sa_text("SELECT COUNT(*) AS n FROM daily_summary"), _eng).iloc[0]["n"]
             st.success(f"✅ DB readable — ai_traffic: **{int(_tc):,} rows**, daily_summary: **{int(_sc):,} rows**")
+            _dates = pd.read_sql(_sa_text("SELECT DISTINCT date FROM ai_traffic ORDER BY date DESC LIMIT 5"), _eng)
+            st.markdown(f"**Sample dates in ai_traffic:** `{list(_dates['date'])}`")
+            st.markdown(f"**Dashboard querying:** `{traffic_start}` → `{traffic_end}`")
         except Exception as _db_ex:
             st.error(f"❌ DB read failed: `{_db_ex}`")
         st.markdown(f"**ga4_status.json exists:** `{_ga4_status_path.exists()}`")
