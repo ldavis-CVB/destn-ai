@@ -99,8 +99,10 @@ def detect_our_destinations(text: str, citations: list[str]) -> dict[str, bool]:
 
 
 # ── Perplexity API ─────────────────────────────────────────────────────────────
-def query_perplexity(query: str) -> dict:
-    """Call Perplexity Sonar API and return parsed result."""
+def query_perplexity(query: str, retries: int = 3) -> dict:
+    """Call Perplexity Sonar API and return parsed result.
+    Retries up to `retries` times on 429 rate-limit with exponential backoff.
+    """
     headers = {
         "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
         "Content-Type": "application/json",
@@ -122,26 +124,32 @@ def query_perplexity(query: str) -> dict:
         "return_related_questions": False,
     }
 
-    try:
-        resp = requests.post(
-            "https://api.perplexity.ai/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-        content   = data["choices"][0]["message"]["content"]
-        citations = data.get("citations", [])
-
-        return {
-            "success":   True,
-            "content":   content,
-            "citations": citations,
-        }
-    except Exception as e:
-        return {"success": False, "content": "", "citations": [], "error": str(e)}
+    for attempt in range(retries + 1):
+        try:
+            resp = requests.post(
+                "https://api.perplexity.ai/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30,
+            )
+            if resp.status_code == 429:
+                wait = int(resp.headers.get("Retry-After", 15 * (2 ** attempt)))
+                print(f"  [RATE LIMIT] waiting {wait}s before retry {attempt+1}/{retries}…")
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            content   = data["choices"][0]["message"]["content"]
+            citations = data.get("citations", [])
+            return {"success": True, "content": content, "citations": citations}
+        except requests.exceptions.RequestException as e:
+            if attempt < retries:
+                wait = 10 * (2 ** attempt)
+                print(f"  [ERROR] {e} — retrying in {wait}s…")
+                time.sleep(wait)
+            else:
+                return {"success": False, "content": "", "citations": [], "error": str(e)}
+    return {"success": False, "content": "", "citations": [], "error": "max retries exceeded"}
 
 
 # ── Store result ───────────────────────────────────────────────────────────────
@@ -166,29 +174,32 @@ def store_result(run_date: str, source: str, query: str, result: dict):
     status   = "[CITED]    " if mentioned else "[not cited]"
     print(f"  {status}  sent:{sent_tag}{abs(sentiment):.2f}  |  {query[:50]}")
 
-    conn = get_conn()
-    execute(conn, f"""
-        INSERT INTO probe_runs
-            (run_date, source, query, mentioned, brand_terms, citations,
-             cited_urls, competitors, raw_snippet, full_response,
-             sentiment_score, our_destinations, fetched_at)
-        VALUES ({PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH})
-    """, (
-        run_date,
-        source,
-        query,
-        int(mentioned),
-        json.dumps(brand_terms),
-        json.dumps(citations),
-        json.dumps(our_urls),
-        json.dumps(competitor_hits),
-        snippet,
-        content,
-        sentiment,
-        json.dumps(dest_hits),
-        datetime.utcnow().isoformat(),
-    ))
-    conn.close()
+    try:
+        conn = get_conn()
+        execute(conn, f"""
+            INSERT INTO probe_runs
+                (run_date, source, query, mentioned, brand_terms, citations,
+                 cited_urls, competitors, raw_snippet, full_response,
+                 sentiment_score, our_destinations, fetched_at)
+            VALUES ({PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH})
+        """, (
+            run_date,
+            source,
+            query,
+            int(mentioned),
+            json.dumps(brand_terms),
+            json.dumps(citations),
+            json.dumps(our_urls),
+            json.dumps(competitor_hits),
+            snippet,
+            content,
+            sentiment,
+            json.dumps(dest_hits),
+            datetime.utcnow().isoformat(),
+        ))
+        conn.close()
+    except Exception as db_err:
+        print(f"  [DB ERROR] {db_err}")
 
 
 # ── Main run ───────────────────────────────────────────────────────────────────
@@ -220,7 +231,7 @@ def query_openai(query: str) -> dict:
         return {"success": False, "content": "", "citations": [], "error": str(e)}
 
 
-def run_probes(queries: list[str] = None, delay: float = 2.0, sources: list[str] = None):
+def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str] = None):
     init_probe_tables()
     run_date = datetime.today().strftime("%Y-%m-%d")
     queries  = queries or QUERIES
