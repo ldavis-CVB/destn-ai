@@ -695,12 +695,12 @@ def load_traffic(start_date: str, end_date: str):
     try:
         engine = get_engine()
         df = pd.read_sql(
-            _sa_text("SELECT * FROM ai_traffic WHERE date >= :s AND date <= :e ORDER BY date"),
-            engine, params={"s": start_date, "e": end_date}
+            _sa_text("SELECT * FROM ai_traffic WHERE date >= :s AND date <= :e ORDER BY date").bindparams(s=start_date, e=end_date),
+            engine
         )
         sm = pd.read_sql(
-            _sa_text("SELECT * FROM daily_summary WHERE date >= :s AND date <= :e ORDER BY date"),
-            engine, params={"s": start_date, "e": end_date}
+            _sa_text("SELECT * FROM daily_summary WHERE date >= :s AND date <= :e ORDER BY date").bindparams(s=start_date, e=end_date),
+            engine
         )
         for f in [df, sm]:
             if not f.empty:
@@ -716,8 +716,8 @@ def load_probes(start_date: str, end_date: str):
     engine = get_engine()
     try:
         df = pd.read_sql(
-            _sa_text("SELECT * FROM probe_runs WHERE run_date >= :s AND run_date <= :e ORDER BY run_date DESC, id"),
-            engine, params={"s": start_date, "e": end_date}
+            _sa_text("SELECT * FROM probe_runs WHERE run_date >= :s AND run_date <= :e ORDER BY run_date DESC, id").bindparams(s=start_date, e=end_date),
+            engine
         )
     except Exception:
         df = pd.DataFrame()
