@@ -648,6 +648,52 @@ def _probe_run_info() -> dict:
     return {}
 
 
+@st.cache_data(ttl=60)
+def load_all_time_probe_stats():
+    """All-time cumulative cited counts per query — not filtered by date."""
+    if not DB_PATH.exists():
+        return pd.DataFrame()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        df = pd.read_sql("""
+            SELECT query,
+                   SUM(mentioned)      AS all_cited,
+                   COUNT(*)            AS all_runs
+            FROM probe_runs
+            GROUP BY query
+        """, conn)
+        conn.close()
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=60)
+def load_run_history():
+    """Summary of every probe run date for the history log."""
+    if not DB_PATH.exists():
+        return pd.DataFrame()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        df = pd.read_sql("""
+            SELECT run_date,
+                   COUNT(DISTINCT source)  AS sources,
+                   COUNT(DISTINCT query)   AS queries,
+                   SUM(mentioned)          AS cited,
+                   COUNT(*)                AS total_rows,
+                   ROUND(SUM(mentioned) * 100.0 / COUNT(*), 1) AS mention_rate,
+                   MIN(fetched_at)         AS started_at,
+                   MAX(fetched_at)         AS finished_at
+            FROM probe_runs
+            GROUP BY run_date
+            ORDER BY run_date DESC
+        """, conn)
+        conn.close()
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
 @st.cache_data(ttl=300)
 def load_traffic(start_date: str, end_date: str):
     """start_date / end_date in YYYYMMDD format."""
@@ -1019,6 +1065,36 @@ elif page == "citations":
     if probe_df.empty:
         st.stop()
 
+    # ── Historic run log dropdown ─────────────────────────────────────────────
+    _run_hist = load_run_history()
+    if not _run_hist.empty:
+        with st.expander(f"📋 Run History  ({len(_run_hist)} run{'s' if len(_run_hist)!=1 else ''} on record)"):
+            hist_display = pd.DataFrame({
+                "Run Date":     _run_hist["run_date"],
+                "Queries":      _run_hist["queries"].astype(int),
+                "AI Sources":   _run_hist["sources"].astype(int),
+                "Times Cited":  _run_hist["cited"].astype(int),
+                "Mention Rate": (_run_hist["mention_rate"].astype(float).round(1).astype(str) + "%"),
+                "Started":      _run_hist["started_at"].apply(
+                    lambda x: datetime.fromisoformat(x).strftime("%b %d %I:%M %p UTC") if x else ""),
+                "Finished":     _run_hist["finished_at"].apply(
+                    lambda x: datetime.fromisoformat(x).strftime("%b %d %I:%M %p UTC") if x else ""),
+            })
+            st.dataframe(
+                hist_display,
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Run Date":     st.column_config.TextColumn(width=100),
+                    "Queries":      st.column_config.NumberColumn(width=80),
+                    "AI Sources":   st.column_config.NumberColumn(width=90),
+                    "Times Cited":  st.column_config.NumberColumn(width=100),
+                    "Mention Rate": st.column_config.TextColumn(width=110),
+                    "Started":      st.column_config.TextColumn(width=160),
+                    "Finished":     st.column_config.TextColumn(width=160),
+                },
+            )
+
     # KPIs
     avg_sent   = probe_df["sentiment_score"].mean() if not probe_df.empty else 0.0
     sent_lbl   = _sent_label(avg_sent)
@@ -1107,6 +1183,13 @@ elif page == "citations":
             search_f = st.text_input("Search", placeholder="Filter queries...",
                                      label_visibility="collapsed")
 
+    # All-time cumulative stats (not date-filtered — grows with every run)
+    _alltime = load_all_time_probe_stats()
+    _alltime_map = {} if _alltime.empty else {
+        r["query"]: (int(r["all_cited"]), int(r["all_runs"]))
+        for _, r in _alltime.iterrows()
+    }
+
     # Apply pre-agg filters
     filt = probe_df.copy()
     cat_map = {"Local Drive": "local", "Regional NC": "regional", "National": "national"}
@@ -1185,10 +1268,18 @@ elif page == "citations":
                 return "  ".join(hits) if hits else "—"
 
             # Build aggregated display dataframe
+            def _cited_str(query, cited_count):
+                """Show all-time cited/runs if available, else fall back to date range."""
+                if query in _alltime_map:
+                    ac, ar = _alltime_map[query]
+                    return f"{ac}/{ar}"
+                return f"{int(cited_count)}/{int(agg.loc[agg['query']==query,'total_runs'].iloc[0])}"
+
             list_df = pd.DataFrame({
-                "Status":       ["Cited" if c > 0 else "Not cited" for c in agg["cited_count"]],
+                "Status":       ["✅ Cited" if ((_alltime_map.get(q,(0,1))[0]) > 0) else "— Not cited"
+                                 for q in agg["query"]],
                 "Query":        agg["query"].tolist(),
-                "Cited":        [f"{int(c)}/{int(t)}" for c, t in zip(agg["cited_count"], agg["total_runs"])],
+                "Cited (all time)": [_cited_str(q, c) for q, c in zip(agg["query"], agg["cited_count"])],
                 "Destinations": [_dest_str(latest_lookup[q].get("our_destinations", {}) if q in latest_lookup else {})
                                  for q in agg["query"]],
                 "Sentiment":    [_sent_label(s) for s in agg["avg_sentiment"]],
@@ -1205,12 +1296,12 @@ elif page == "citations":
                 on_select="rerun",
                 selection_mode="single-row",
                 column_config={
-                    "Status":       st.column_config.TextColumn("Status",       width=90),
-                    "Query":        st.column_config.TextColumn("Query",        width="large"),
-                    "Cited":        st.column_config.TextColumn("Cited",        width=75),
-                    "Destinations": st.column_config.TextColumn("Destinations", width=110),
-                    "Sentiment":    st.column_config.TextColumn("Sentiment",    width=90),
-                    "Last Run":     st.column_config.TextColumn("Last Run",     width=75),
+                    "Status":           st.column_config.TextColumn("Status",         width=100),
+                    "Query":            st.column_config.TextColumn("Query",          width="large"),
+                    "Cited (all time)": st.column_config.TextColumn("Cited (all time)", width=110),
+                    "Destinations":     st.column_config.TextColumn("Destinations",   width=110),
+                    "Sentiment":        st.column_config.TextColumn("Sentiment",      width=90),
+                    "Last Run":         st.column_config.TextColumn("Last Run",       width=75),
                 },
             )
 
