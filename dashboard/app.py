@@ -649,6 +649,22 @@ def _probe_run_info() -> dict:
     return {}
 
 
+def load_custom_queries_df() -> pd.DataFrame:
+    """Load all custom queries (active + inactive) from DB — no cache so edits show instantly."""
+    try:
+        engine = get_engine()
+        return pd.read_sql(_sa_text("SELECT id, query, category, active, created_at FROM custom_queries ORDER BY created_at DESC"), engine)
+    except Exception:
+        return pd.DataFrame(columns=["id","query","category","active","created_at"])
+
+
+def _cq_write(sql: str, params: tuple):
+    """Helper for custom-query writes (insert / update / delete)."""
+    conn = get_conn()
+    execute(conn, sql, params)
+    conn.close()
+
+
 @st.cache_data(ttl=60)
 def load_all_time_probe_stats():
     """All-time cumulative cited counts per query — not filtered by date."""
@@ -774,8 +790,8 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Nav bar + date range ──────────────────────────────────────────────────────
-pages_def  = ["Overview", "AI Citation Monitor", "Traffic Trends", "Geography", "Landing Pages"]
-pages_keys = ["overview", "citations", "traffic", "geo", "lp"]
+pages_def  = ["Overview", "AI Citation Monitor", "Traffic Trends", "Geography", "Landing Pages", "Query Manager"]
+pages_keys = ["overview", "citations", "traffic", "geo", "lp", "queries"]
 
 nav_col, date_col = st.columns([5, 1.5])
 
@@ -837,9 +853,10 @@ probe_end     = end_d.strftime("%Y-%m-%d")
 # ── Load data ─────────────────────────────────────────────────────────────────
 df, summary = load_traffic(traffic_start, traffic_end)
 probe_df    = load_probes(probe_start, probe_end)
-# Filter to only active queries so retired queries don't inflate counts
+# Filter to active built-in + active custom queries
+_cq_active = set(load_custom_queries_df().query("active == 1")["query"].tolist()) if _HAS_DB else set()
 if ACTIVE_QUERIES and not probe_df.empty:
-    probe_df = probe_df[probe_df["query"].isin(ACTIVE_QUERIES)]
+    probe_df = probe_df[probe_df["query"].isin(set(ACTIVE_QUERIES) | _cq_active)]
 page        = st.session_state.page
 
 # Pre-compute traffic aggregates
@@ -1837,5 +1854,92 @@ elif page == "lp":
         hide_index=True, use_container_width=True
     )
     st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ==============================================================================
+# QUERY MANAGER
+# ==============================================================================
+elif page == "queries":
+    st.markdown(
+        '<div class="page-header">'
+        '<div class="page-title">Query Manager</div>'
+        '<div class="page-sub">Add custom queries to the daily probe run</div>'
+        '</div>', unsafe_allow_html=True
+    )
+
+    # ── Add new query ─────────────────────────────────────────────────────────
+    st.markdown('<div class="card"><div class="card-title">Add Custom Query</div>', unsafe_allow_html=True)
+    with st.form("add_query_form", clear_on_submit=True):
+        new_q = st.text_input(
+            "Query text",
+            placeholder='e.g. "best beach wedding venues in North Carolina"',
+            help="Enter the exact question you want AI tools to be probed with."
+        )
+        new_cat = st.selectbox(
+            "Category",
+            ["local", "regional", "national"],
+            index=2,
+            help="local = drive-market queries  ·  regional = NC/state-level  ·  national = East Coast / US-wide"
+        )
+        submitted = st.form_submit_button("➕ Add Query", use_container_width=True)
+        if submitted:
+            q = new_q.strip()
+            if not q:
+                st.warning("Please enter a query.")
+            else:
+                try:
+                    _cq_write(
+                        f"INSERT INTO custom_queries (query, category, active, created_at) VALUES ({PH},{PH},1,{PH})",
+                        (q, new_cat, datetime.utcnow().isoformat())
+                    )
+                    st.success(f"✅ Added: *{q}*  ·  category: **{new_cat}** — will run on next probe.")
+                except Exception as _ins_e:
+                    if "unique" in str(_ins_e).lower() or "duplicate" in str(_ins_e).lower():
+                        st.warning("That query already exists.")
+                    else:
+                        st.error(f"Error saving query: {_ins_e}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── Custom queries table ──────────────────────────────────────────────────
+    cq_df = load_custom_queries_df()
+    st.markdown('<div class="card"><div class="card-title">Your Custom Queries</div>', unsafe_allow_html=True)
+    CAT_COLORS = {"local": "#0576a6", "regional": "#2e7d32", "national": "#7b1fa2"}
+
+    if cq_df.empty:
+        st.info("No custom queries yet — add one above and it will be included in every future probe run.")
+    else:
+        for _, row in cq_df.iterrows():
+            col_q, col_cat, col_tog, col_del = st.columns([6, 1.2, 1, 0.8])
+            status_icon = "🟢" if row["active"] else "⚪"
+            col_q.markdown(f"{status_icon} {row['query']}")
+            cat_color = CAT_COLORS.get(row["category"], MUTED)
+            col_cat.markdown(
+                f'<span style="background:{cat_color}18;color:{cat_color};padding:2px 8px;'
+                f'border-radius:10px;font-size:0.78rem;font-weight:600;">{row["category"]}</span>',
+                unsafe_allow_html=True
+            )
+            tog_label = "Pause" if row["active"] else "Resume"
+            if col_tog.button(tog_label, key=f"tog_{row['id']}"):
+                _cq_write(
+                    f"UPDATE custom_queries SET active = {PH} WHERE id = {PH}",
+                    (0 if row["active"] else 1, int(row["id"]))
+                )
+                st.rerun()
+            if col_del.button("🗑", key=f"del_{row['id']}", help="Delete permanently"):
+                _cq_write(f"DELETE FROM custom_queries WHERE id = {PH}", (int(row["id"]),))
+                st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── Built-in queries reference ────────────────────────────────────────────
+    with st.expander(f"📋 Built-in queries ({len(ACTIVE_QUERIES)} total — read-only)", expanded=False):
+        for q in ACTIVE_QUERIES:
+            cat = QUERY_CATEGORIES.get(q, "national")
+            color = CAT_COLORS.get(cat, MUTED)
+            st.markdown(
+                f'<span style="background:{color}18;color:{color};padding:1px 7px;border-radius:8px;'
+                f'font-size:0.75rem;font-weight:600;margin-right:6px;">{cat}</span>{q}',
+                unsafe_allow_html=True
+            )
 
 st.markdown('</div>', unsafe_allow_html=True)

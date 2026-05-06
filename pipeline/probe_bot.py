@@ -20,7 +20,7 @@ except ImportError:
     _HAS_BLOB = False
 
 from queries import QUERIES, BRAND_SIGNALS, COMPETITORS, OUR_DESTINATIONS
-from db import get_conn, execute, fetchone, PH, AI, DB_PATH, IS_POSTGRES
+from db import get_conn, execute, fetchone, PH, AI, DB_PATH, IS_POSTGRES, get_engine
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
@@ -29,6 +29,39 @@ OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY")
 
 
 # ── DB setup ───────────────────────────────────────────────────────────────────
+def init_custom_queries_table():
+    conn = get_conn()
+    execute(conn, f"""
+        CREATE TABLE IF NOT EXISTS custom_queries (
+            id        {AI},
+            query     TEXT NOT NULL,
+            category  TEXT NOT NULL DEFAULT 'national',
+            active    INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.close()
+
+
+def load_custom_queries() -> list[dict]:
+    """Return all active custom queries from the DB."""
+    try:
+        conn = get_conn()
+        if IS_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("SELECT query, category FROM custom_queries WHERE active = 1 ORDER BY created_at")
+            rows = cur.fetchall()
+            cur.close()
+        else:
+            rows = conn.execute(
+                "SELECT query, category FROM custom_queries WHERE active = 1 ORDER BY created_at"
+            ).fetchall()
+        conn.close()
+        return [{"query": r[0], "category": r[1]} for r in rows]
+    except Exception:
+        return []
+
+
 def init_probe_tables():
     conn = get_conn()
     execute(conn, f"""
@@ -61,6 +94,7 @@ def init_probe_tables():
     execute(conn, "CREATE INDEX IF NOT EXISTS idx_probe_source ON probe_runs(source)")
     execute(conn, "CREATE INDEX IF NOT EXISTS idx_probe_query  ON probe_runs(query)")
     conn.close()
+    init_custom_queries_table()
 
 
 # ── Sentiment ─────────────────────────────────────────────────────────────────
@@ -234,19 +268,25 @@ def query_openai(query: str) -> dict:
 def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str] = None):
     init_probe_tables()
     run_date = datetime.today().strftime("%Y-%m-%d")
-    queries  = queries or QUERIES
+
+    # Merge built-in queries with active custom queries (dedup, preserve order)
+    base = queries or QUERIES
+    custom = [c["query"] for c in load_custom_queries()]
+    seen = set(base)
+    all_queries = list(base) + [q for q in custom if q not in seen]
+
     sources  = sources or (["perplexity", "chatgpt"] if OPENAI_API_KEY else ["perplexity"])
 
     print(f"\n{'='*60}")
     print(f"AI Probe Bot - Wilmington & Beaches CVB")
-    print(f"Date: {run_date}  |  Queries: {len(queries)}  |  Sources: {', '.join(sources)}")
+    print(f"Date: {run_date}  |  Queries: {len(all_queries)} ({len(custom)} custom)  |  Sources: {', '.join(sources)}")
     print(f"{'='*60}\n")
 
     for source in sources:
         print(f"\n-- {source.upper()} --")
         cited = 0
-        for i, query in enumerate(queries, 1):
-            print(f"[{i:02d}/{len(queries)}]", end="  ")
+        for i, query in enumerate(all_queries, 1):
+            print(f"[{i:02d}/{len(all_queries)}]", end="  ")
             if source == "perplexity":
                 result = query_perplexity(query)
             else:
@@ -254,10 +294,10 @@ def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str]
             store_result(run_date, source, query, result)
             if result.get("success") and detect_brand(result["content"], result["citations"])[0]:
                 cited += 1
-            if i < len(queries):
+            if i < len(all_queries):
                 time.sleep(delay)
-        mention_rate = cited / len(queries) * 100
-        print(f"\n{source.title()}: Cited in {cited}/{len(queries)} ({mention_rate:.1f}%)")
+        mention_rate = cited / len(all_queries) * 100
+        print(f"\n{source.title()}: Cited in {cited}/{len(all_queries)} ({mention_rate:.1f}%)")
 
     print(f"\n{'='*60}")
     print(f"All done!")
