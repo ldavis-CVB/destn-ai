@@ -653,7 +653,8 @@ def load_custom_queries_df() -> pd.DataFrame:
     """Load all custom queries (active + inactive) from DB — no cache so edits show instantly."""
     try:
         engine = get_engine()
-        return pd.read_sql(_sa_text("SELECT id, query, category, active, created_at FROM custom_queries ORDER BY created_at DESC"), engine)
+        with engine.connect() as conn:
+            return pd.read_sql(_sa_text("SELECT id, query, category, active, created_at FROM custom_queries ORDER BY created_at DESC"), conn)
     except Exception:
         return pd.DataFrame(columns=["id","query","category","active","created_at"])
 
@@ -670,13 +671,14 @@ def load_all_time_probe_stats():
     """All-time cumulative cited counts per query — not filtered by date."""
     try:
         engine = get_engine()
-        df = pd.read_sql(_sa_text("""
-            SELECT query,
-                   SUM(mentioned)      AS all_cited,
-                   COUNT(*)            AS all_runs
-            FROM probe_runs
-            GROUP BY query
-        """), engine)
+        with engine.connect() as conn:
+            df = pd.read_sql(_sa_text("""
+                SELECT query,
+                       SUM(mentioned)      AS all_cited,
+                       COUNT(*)            AS all_runs
+                FROM probe_runs
+                GROUP BY query
+            """), conn)
         return df
     except Exception:
         return pd.DataFrame()
@@ -687,19 +689,20 @@ def load_run_history():
     """Summary of every probe run date for the history log."""
     try:
         engine = get_engine()
-        df = pd.read_sql(_sa_text("""
-            SELECT run_date,
-                   COUNT(DISTINCT source)  AS sources,
-                   COUNT(DISTINCT query)   AS queries,
-                   SUM(mentioned)          AS cited,
-                   COUNT(*)                AS total_rows,
-                   ROUND(SUM(mentioned) * 100.0 / COUNT(*), 1) AS mention_rate,
-                   MIN(fetched_at)         AS started_at,
-                   MAX(fetched_at)         AS finished_at
-            FROM probe_runs
-            GROUP BY run_date
-            ORDER BY run_date DESC
-        """), engine)
+        with engine.connect() as conn:
+            df = pd.read_sql(_sa_text("""
+                SELECT run_date,
+                       COUNT(DISTINCT source)  AS sources,
+                       COUNT(DISTINCT query)   AS queries,
+                       SUM(mentioned)          AS cited,
+                       COUNT(*)                AS total_rows,
+                       ROUND(SUM(mentioned) * 100.0 / COUNT(*), 1) AS mention_rate,
+                       MIN(fetched_at)         AS started_at,
+                       MAX(fetched_at)         AS finished_at
+                FROM probe_runs
+                GROUP BY run_date
+                ORDER BY run_date DESC
+            """), conn)
         return df
     except Exception:
         return pd.DataFrame()
@@ -710,31 +713,34 @@ def load_traffic(start_date: str, end_date: str):
     """start_date / end_date in YYYYMMDD format."""
     try:
         engine = get_engine()
-        df = pd.read_sql(
-            f"SELECT * FROM ai_traffic WHERE date >= '{start_date}' AND date <= '{end_date}' ORDER BY date",
-            engine
-        )
-        sm = pd.read_sql(
-            f"SELECT * FROM daily_summary WHERE date >= '{start_date}' AND date <= '{end_date}' ORDER BY date",
-            engine
-        )
+        with engine.connect() as conn:
+            df = pd.read_sql(
+                f"SELECT * FROM ai_traffic WHERE date >= '{start_date}' AND date <= '{end_date}' ORDER BY date",
+                conn
+            )
+            sm = pd.read_sql(
+                f"SELECT * FROM daily_summary WHERE date >= '{start_date}' AND date <= '{end_date}' ORDER BY date",
+                conn
+            )
         for f in [df, sm]:
             if not f.empty:
                 f["date"] = pd.to_datetime(f["date"], format="%Y%m%d", errors="coerce")
         return df, sm
-    except Exception as e:
+    except Exception as _e:
+        st.session_state["_traffic_err"] = str(_e)
         return pd.DataFrame(), pd.DataFrame()
 
 
 @st.cache_data(ttl=60)
 def load_probes(start_date: str, end_date: str):
     """start_date / end_date in YYYY-MM-DD format."""
-    engine = get_engine()
     try:
-        df = pd.read_sql(
-            f"SELECT * FROM probe_runs WHERE run_date >= '{start_date}' AND run_date <= '{end_date}' ORDER BY run_date DESC, id",
-            engine
-        )
+        engine = get_engine()
+        with engine.connect() as conn:
+            df = pd.read_sql(
+                f"SELECT * FROM probe_runs WHERE run_date >= '{start_date}' AND run_date <= '{end_date}' ORDER BY run_date DESC, id",
+                conn
+            )
     except Exception:
         df = pd.DataFrame()
     if not df.empty:
@@ -1676,14 +1682,17 @@ elif page == "traffic":
         # Live row count + sample dates from DB
         try:
             _eng = get_engine()
-            _tc = pd.read_sql(_sa_text("SELECT COUNT(*) AS n FROM ai_traffic"), _eng).iloc[0]["n"]
-            _sc = pd.read_sql(_sa_text("SELECT COUNT(*) AS n FROM daily_summary"), _eng).iloc[0]["n"]
+            with _eng.connect() as _c:
+                _tc = pd.read_sql(_sa_text("SELECT COUNT(*) AS n FROM ai_traffic"), _c).iloc[0]["n"]
+                _sc = pd.read_sql(_sa_text("SELECT COUNT(*) AS n FROM daily_summary"), _c).iloc[0]["n"]
+                _dates = pd.read_sql(_sa_text("SELECT DISTINCT date FROM ai_traffic ORDER BY date DESC LIMIT 5"), _c)
             st.success(f"✅ DB readable — ai_traffic: **{int(_tc):,} rows**, daily_summary: **{int(_sc):,} rows**")
-            _dates = pd.read_sql(_sa_text("SELECT DISTINCT date FROM ai_traffic ORDER BY date DESC LIMIT 5"), _eng)
             st.markdown(f"**Sample dates in ai_traffic:** `{list(_dates['date'])}`")
             st.markdown(f"**Dashboard querying:** `{traffic_start}` → `{traffic_end}`")
         except Exception as _db_ex:
             st.error(f"❌ DB read failed: `{_db_ex}`")
+        if st.session_state.get("_traffic_err"):
+            st.error(f"❌ load_traffic error: `{st.session_state['_traffic_err']}`")
         st.markdown(f"**ga4_status.json exists:** `{_ga4_status_path.exists()}`")
         if _ga4_status_path.exists():
             st.json(json.loads(_ga4_status_path.read_text()))

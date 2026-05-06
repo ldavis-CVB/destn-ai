@@ -206,53 +206,70 @@ def fetch_total_sessions(
 
 
 def store_results(rows: list[dict], total_by_date: dict):
+    """Write GA4 rows to DB inside a single transaction — rolls back on error."""
     conn = get_conn()
     fetched_at = datetime.utcnow().isoformat()
 
-    # Clear existing data for the date range being refreshed
-    if rows:
-        dates = list({r["date"] for r in rows})
-        ph_list = ",".join([PH] * len(dates))
-        execute(conn, f"DELETE FROM ai_traffic WHERE date IN ({ph_list})", dates)
-
-    # Build positional tuples for executemany
+    # Build positional tuples first (no DB ops yet — fail fast before any deletes)
     traffic_tuples = [
         (r["date"], r["source_domain"], r["source_name"], r["source_category"],
          r["country"], r["region"], r["city"], r["landing_page"],
          r["sessions"], r["engaged_sessions"], r["conversions"], fetched_at)
         for r in rows
     ]
-    executemany(conn, f"""
-        INSERT INTO ai_traffic
-            (date, source_domain, source_name, source_category, country, region, city,
-             landing_page, sessions, engaged_sessions, conversions, fetched_at)
-        VALUES ({PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH})
-    """, traffic_tuples)
 
-    # Compute per-date AI totals vs overall
     ai_by_date: dict[str, int] = {}
     for r in rows:
         ai_by_date[r["date"]] = ai_by_date.get(r["date"], 0) + r["sessions"]
 
-    summary_rows = []
-    for date, total in total_by_date.items():
-        ai = ai_by_date.get(date, 0)
-        summary_rows.append((
-            date,
-            ai,
-            total,
-            round(ai / total * 100, 2) if total else 0,
-            fetched_at,
-        ))
+    summary_tuples = [
+        (date, ai_by_date.get(date, 0), total,
+         round(ai_by_date.get(date, 0) / total * 100, 2) if total else 0, fetched_at)
+        for date, total in total_by_date.items()
+    ]
 
-    if summary_rows:
-        dates = [r[0] for r in summary_rows]
-        ph_list = ",".join([PH] * len(dates))
-        execute(conn, f"DELETE FROM daily_summary WHERE date IN ({ph_list})", dates)
-        executemany(conn, f"""
-            INSERT INTO daily_summary (date, total_ai_sessions, total_sessions, ai_share_pct, fetched_at)
-            VALUES ({PH},{PH},{PH},{PH},{PH})
-        """, summary_rows)
+    try:
+        cur = conn.cursor() if IS_POSTGRES else None
+
+        def _exec(sql, params=()):
+            if IS_POSTGRES:
+                cur.execute(sql, params)
+            else:
+                conn.execute(sql, params)
+
+        def _execmany(sql, data):
+            if IS_POSTGRES:
+                cur.executemany(sql, data)
+            else:
+                conn.executemany(sql, data)
+
+        if rows:
+            dates = list({r["date"] for r in rows})
+            ph_list = ",".join([PH] * len(dates))
+            _exec(f"DELETE FROM ai_traffic WHERE date IN ({ph_list})", dates)
+            _execmany(f"""
+                INSERT INTO ai_traffic
+                    (date, source_domain, source_name, source_category, country, region, city,
+                     landing_page, sessions, engaged_sessions, conversions, fetched_at)
+                VALUES ({PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH})
+            """, traffic_tuples)
+
+        if summary_tuples:
+            dates = [t[0] for t in summary_tuples]
+            ph_list = ",".join([PH] * len(dates))
+            _exec(f"DELETE FROM daily_summary WHERE date IN ({ph_list})", dates)
+            _execmany(f"""
+                INSERT INTO daily_summary (date, total_ai_sessions, total_sessions, ai_share_pct, fetched_at)
+                VALUES ({PH},{PH},{PH},{PH},{PH})
+            """, summary_tuples)
+
+        conn.commit()
+        if cur:
+            cur.close()
+    except Exception:
+        conn.rollback()
+        conn.close()
+        raise
 
     conn.close()
     return len(rows)
