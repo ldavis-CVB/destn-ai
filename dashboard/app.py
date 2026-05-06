@@ -1650,10 +1650,20 @@ elif page == "traffic":
     # ── GA4 diagnostics ───────────────────────────────────────────────────────
     _ga4_status_path = DB_PATH.parent / "ga4_status.json"
     with st.expander("🔧 GA4 Sync Diagnostics", expanded=True):
-        st.markdown(f"**DB path:** `{DB_PATH}`  \n**DB exists:** `{DB_PATH.exists()}`")
+        st.markdown(f"**DB path:** `{DB_PATH}`  \n**DB exists (SQLite):** `{DB_PATH.exists()}`")
+        st.markdown(f"**db.py loaded:** `{_HAS_DB}`  \n**IS_POSTGRES:** `{IS_POSTGRES if _HAS_DB else 'N/A'}`")
+        st.markdown(f"**DATABASE_URL set:** `{bool(_os.getenv('DATABASE_URL'))}`")
         st.markdown(f"**GA4_OAUTH_TOKEN_B64 set:** `{bool(_os.getenv('GA4_OAUTH_TOKEN_B64'))}`")
         st.markdown(f"**GA4_CREDENTIALS_B64 set:** `{bool(_os.getenv('GA4_CREDENTIALS_B64'))}`")
         st.markdown(f"**GA4_PROPERTY_ID:** `{_os.getenv('GA4_PROPERTY_ID','not set')}`")
+        # Live row count from DB
+        try:
+            _eng = get_engine()
+            _tc = pd.read_sql(_sa_text("SELECT COUNT(*) AS n FROM ai_traffic"), _eng).iloc[0]["n"]
+            _sc = pd.read_sql(_sa_text("SELECT COUNT(*) AS n FROM daily_summary"), _eng).iloc[0]["n"]
+            st.success(f"✅ DB readable — ai_traffic: **{int(_tc):,} rows**, daily_summary: **{int(_sc):,} rows**")
+        except Exception as _db_ex:
+            st.error(f"❌ DB read failed: `{_db_ex}`")
         st.markdown(f"**ga4_status.json exists:** `{_ga4_status_path.exists()}`")
         if _ga4_status_path.exists():
             st.json(json.loads(_ga4_status_path.read_text()))
