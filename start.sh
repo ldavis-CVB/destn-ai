@@ -9,13 +9,14 @@ echo "==> Scheduler started (probe M-F 7am ET, GA4 sync M-F 8am ET)"
 
 # ── Probe bot: seed on first run of the day ───────────────────────────────────
 python -c "
-import sqlite3, sys
+import sys, os
+sys.path.insert(0, 'pipeline')
 try:
-    conn = sqlite3.connect('$DB_PATH')
-    count = conn.execute(
-        \"SELECT COUNT(*) FROM probe_runs WHERE run_date = '$TODAY'\"
-    ).fetchone()[0]
+    from db import get_conn, fetchone, PH
+    conn = get_conn()
+    row = fetchone(conn, f\"SELECT COUNT(*) FROM probe_runs WHERE run_date = {PH}\", ('$TODAY',))
     conn.close()
+    count = row[0] if row else 0
     sys.exit(0 if count >= 30 else 1)
 except:
     sys.exit(1)

@@ -3,7 +3,7 @@ destn.ai  --  AI Visibility Platform
 Wilmington & Beaches CVB
 """
 
-import json, sqlite3, sys, html as _html, base64, tempfile
+import json, sys, html as _html, base64, tempfile
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -65,6 +65,13 @@ except ImportError:
 # Allow importing from pipeline/
 sys.path.insert(0, str(Path(__file__).parent.parent / "pipeline"))
 try:
+    from db import get_conn, get_engine, fetchone as db_fetchone, PH, IS_POSTGRES, DB_PATH as _DB_PATH
+    from sqlalchemy import text as _sa_text
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
+try:
     from queries import QUERY_CATEGORIES, OUR_DESTINATIONS, QUERIES as ACTIVE_QUERIES
 except ImportError:
     ACTIVE_QUERIES    = []
@@ -86,7 +93,7 @@ def _detect_destinations(text: str) -> dict:
             for name, sigs in OUR_DESTINATIONS.items()}
 
 import os as _os
-DB_PATH = Path(_os.getenv("DB_PATH", str(Path(__file__).parent.parent / "data" / "traffic.db")))
+DB_PATH = _DB_PATH if _HAS_DB else Path(_os.getenv("DB_PATH", str(Path(__file__).parent.parent / "data" / "traffic.db")))
 
 st.set_page_config(
     page_title="destn.ai | Wilmington & Beaches",
@@ -603,27 +610,21 @@ def _query_cat(q: str) -> str:
 # ── Data loaders ──────────────────────────────────────────────────────────────
 def _today_probe_count() -> int:
     """Return how many probe rows exist for today (no cache — always fresh)."""
-    if not DB_PATH.exists():
-        return 0
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_conn()
         today = datetime.today().strftime("%Y-%m-%d")
-        n = conn.execute(
-            "SELECT COUNT(*) FROM probe_runs WHERE run_date = ?", (today,)
-        ).fetchone()[0]
+        row = db_fetchone(conn, f"SELECT COUNT(*) FROM probe_runs WHERE run_date = {PH}", (today,))
         conn.close()
-        return n
+        return row[0] if row else 0
     except Exception:
         return 0
 
 
 def _probe_run_info() -> dict:
     """Return metadata about the most recent probe run (no cache)."""
-    if not DB_PATH.exists():
-        return {}
     try:
-        conn = sqlite3.connect(DB_PATH)
-        row = conn.execute("""
+        conn = get_conn()
+        row = db_fetchone(conn, """
             SELECT run_date,
                    COUNT(*)                        AS total_rows,
                    COUNT(DISTINCT query)            AS unique_queries,
@@ -632,7 +633,7 @@ def _probe_run_info() -> dict:
                    MAX(fetched_at)                 AS last_fetched
             FROM probe_runs
             WHERE run_date = (SELECT MAX(run_date) FROM probe_runs)
-        """).fetchone()
+        """)
         conn.close()
         if row and row[0]:
             return {
@@ -651,18 +652,15 @@ def _probe_run_info() -> dict:
 @st.cache_data(ttl=60)
 def load_all_time_probe_stats():
     """All-time cumulative cited counts per query — not filtered by date."""
-    if not DB_PATH.exists():
-        return pd.DataFrame()
     try:
-        conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql("""
+        engine = get_engine()
+        df = pd.read_sql(_sa_text("""
             SELECT query,
                    SUM(mentioned)      AS all_cited,
                    COUNT(*)            AS all_runs
             FROM probe_runs
             GROUP BY query
-        """, conn)
-        conn.close()
+        """), engine)
         return df
     except Exception:
         return pd.DataFrame()
@@ -671,11 +669,9 @@ def load_all_time_probe_stats():
 @st.cache_data(ttl=60)
 def load_run_history():
     """Summary of every probe run date for the history log."""
-    if not DB_PATH.exists():
-        return pd.DataFrame()
     try:
-        conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql("""
+        engine = get_engine()
+        df = pd.read_sql(_sa_text("""
             SELECT run_date,
                    COUNT(DISTINCT source)  AS sources,
                    COUNT(DISTINCT query)   AS queries,
@@ -687,8 +683,7 @@ def load_run_history():
             FROM probe_runs
             GROUP BY run_date
             ORDER BY run_date DESC
-        """, conn)
-        conn.close()
+        """), engine)
         return df
     except Exception:
         return pd.DataFrame()
@@ -697,19 +692,16 @@ def load_run_history():
 @st.cache_data(ttl=300)
 def load_traffic(start_date: str, end_date: str):
     """start_date / end_date in YYYYMMDD format."""
-    if not DB_PATH.exists():
-        return pd.DataFrame(), pd.DataFrame()
     try:
-        conn = sqlite3.connect(DB_PATH)
+        engine = get_engine()
         df = pd.read_sql(
-            "SELECT * FROM ai_traffic WHERE date >= ? AND date <= ? ORDER BY date",
-            conn, params=(start_date, end_date)
+            _sa_text("SELECT * FROM ai_traffic WHERE date >= :s AND date <= :e ORDER BY date"),
+            engine, params={"s": start_date, "e": end_date}
         )
         sm = pd.read_sql(
-            "SELECT * FROM daily_summary WHERE date >= ? AND date <= ? ORDER BY date",
-            conn, params=(start_date, end_date)
+            _sa_text("SELECT * FROM daily_summary WHERE date >= :s AND date <= :e ORDER BY date"),
+            engine, params={"s": start_date, "e": end_date}
         )
-        conn.close()
         for f in [df, sm]:
             if not f.empty:
                 f["date"] = pd.to_datetime(f["date"], format="%Y%m%d")
@@ -721,17 +713,14 @@ def load_traffic(start_date: str, end_date: str):
 @st.cache_data(ttl=60)
 def load_probes(start_date: str, end_date: str):
     """start_date / end_date in YYYY-MM-DD format."""
-    if not DB_PATH.exists():
-        return pd.DataFrame()
-    conn = sqlite3.connect(DB_PATH)
+    engine = get_engine()
     try:
         df = pd.read_sql(
-            "SELECT * FROM probe_runs WHERE run_date >= ? AND run_date <= ? ORDER BY run_date DESC, id",
-            conn, params=(start_date, end_date)
+            _sa_text("SELECT * FROM probe_runs WHERE run_date >= :s AND run_date <= :e ORDER BY run_date DESC, id"),
+            engine, params={"s": start_date, "e": end_date}
         )
     except Exception:
         df = pd.DataFrame()
-    conn.close()
     if not df.empty:
         df["run_date"]    = pd.to_datetime(df["run_date"])
 

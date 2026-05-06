@@ -5,7 +5,6 @@ Run daily:  py probe_bot.py
 """
 
 import os
-import sqlite3
 import time
 import json
 import requests
@@ -21,20 +20,20 @@ except ImportError:
     _HAS_BLOB = False
 
 from queries import QUERIES, BRAND_SIGNALS, COMPETITORS, OUR_DESTINATIONS
+from db import get_conn, execute, fetchone, PH, AI, DB_PATH, IS_POSTGRES
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY")
-DB_PATH = Path(os.getenv("DB_PATH", str(Path(__file__).parent.parent / "data" / "traffic.db")))
 
 
 # ── DB setup ───────────────────────────────────────────────────────────────────
 def init_probe_tables():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    conn = get_conn()
+    execute(conn, f"""
         CREATE TABLE IF NOT EXISTS probe_runs (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            id           {AI},
             run_date     TEXT NOT NULL,
             source       TEXT NOT NULL,
             query        TEXT NOT NULL,
@@ -48,20 +47,19 @@ def init_probe_tables():
             fetched_at   TEXT NOT NULL
         )
     """)
-    # Add columns for schema upgrades
+    # Add columns for schema upgrades (IF NOT EXISTS works on PG + SQLite 3.37+)
     for col_def in [
-        "ALTER TABLE probe_runs ADD COLUMN full_response TEXT",
-        "ALTER TABLE probe_runs ADD COLUMN sentiment_score REAL DEFAULT 0",
-        "ALTER TABLE probe_runs ADD COLUMN our_destinations TEXT",
+        "ALTER TABLE probe_runs ADD COLUMN IF NOT EXISTS full_response TEXT",
+        "ALTER TABLE probe_runs ADD COLUMN IF NOT EXISTS sentiment_score REAL DEFAULT 0",
+        "ALTER TABLE probe_runs ADD COLUMN IF NOT EXISTS our_destinations TEXT",
     ]:
         try:
-            conn.execute(col_def)
+            execute(conn, col_def)
         except Exception:
             pass
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_probe_date   ON probe_runs(run_date)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_probe_source ON probe_runs(source)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_probe_query  ON probe_runs(query)")
-    conn.commit()
+    execute(conn, "CREATE INDEX IF NOT EXISTS idx_probe_date   ON probe_runs(run_date)")
+    execute(conn, "CREATE INDEX IF NOT EXISTS idx_probe_source ON probe_runs(source)")
+    execute(conn, "CREATE INDEX IF NOT EXISTS idx_probe_query  ON probe_runs(query)")
     conn.close()
 
 
@@ -168,13 +166,13 @@ def store_result(run_date: str, source: str, query: str, result: dict):
     status   = "[CITED]    " if mentioned else "[not cited]"
     print(f"  {status}  sent:{sent_tag}{abs(sentiment):.2f}  |  {query[:50]}")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    conn = get_conn()
+    execute(conn, f"""
         INSERT INTO probe_runs
             (run_date, source, query, mentioned, brand_terms, citations,
              cited_urls, competitors, raw_snippet, full_response,
              sentiment_score, our_destinations, fetched_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES ({PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH})
     """, (
         run_date,
         source,
@@ -190,7 +188,6 @@ def store_result(run_date: str, source: str, query: str, result: dict):
         json.dumps(dest_hits),
         datetime.utcnow().isoformat(),
     ))
-    conn.commit()
     conn.close()
 
 

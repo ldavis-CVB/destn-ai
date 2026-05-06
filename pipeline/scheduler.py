@@ -7,13 +7,11 @@ Checks once per hour — restarts cleanly on container reboot.
 
 import os
 import subprocess
-import sqlite3
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path(os.getenv("DB_PATH", "/app/data/traffic.db"))
-WORKDIR  = Path("/app")
+WORKDIR = Path("/app")
 
 
 def _today():
@@ -31,12 +29,11 @@ def _weekday():
 
 def probe_already_ran() -> bool:
     try:
-        conn = sqlite3.connect(DB_PATH)
-        count = conn.execute(
-            "SELECT COUNT(*) FROM probe_runs WHERE run_date = ?", (_today(),)
-        ).fetchone()[0]
+        from db import get_conn, fetchone, PH
+        conn = get_conn()
+        row = fetchone(conn, f"SELECT COUNT(*) FROM probe_runs WHERE run_date = {PH}", (_today(),))
         conn.close()
-        return count >= 30
+        return (row[0] if row else 0) >= 30
     except Exception:
         return False
 

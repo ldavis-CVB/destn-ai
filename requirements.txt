@@ -8,3 +8,5 @@ requests
 openai>=1.30.0
 textblob
 python-dotenv
+psycopg2-binary
+sqlalchemy

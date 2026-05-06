@@ -11,7 +11,6 @@ Auth priority (first match wins):
 import os
 import base64
 import json
-import sqlite3
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -31,8 +30,7 @@ from google.analytics.data_v1beta.types import (
     FilterExpressionList,
 )
 from ai_sources import get_all_domains, classify_referrer
-
-DB_PATH = Path(__file__).parent.parent / "data" / "traffic.db"
+from db import get_conn, get_engine, execute, executemany, PH, AI, DB_PATH, IS_POSTGRES
 
 
 def get_client() -> BetaAnalyticsDataClient:
@@ -84,11 +82,10 @@ def get_client() -> BetaAnalyticsDataClient:
 
 
 def init_db():
-    DB_PATH.parent.mkdir(exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    conn = get_conn()
+    execute(conn, f"""
         CREATE TABLE IF NOT EXISTS ai_traffic (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {AI},
             date TEXT NOT NULL,
             source_domain TEXT NOT NULL,
             source_name TEXT NOT NULL,
@@ -103,9 +100,9 @@ def init_db():
             fetched_at TEXT NOT NULL
         )
     """)
-    conn.execute("""
+    execute(conn, f"""
         CREATE TABLE IF NOT EXISTS daily_summary (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {AI},
             date TEXT NOT NULL,
             total_ai_sessions INTEGER DEFAULT 0,
             total_sessions INTEGER DEFAULT 0,
@@ -113,9 +110,8 @@ def init_db():
             fetched_at TEXT NOT NULL
         )
     """)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_date ON ai_traffic(date)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_source ON ai_traffic(source_name)")
-    conn.commit()
+    execute(conn, "CREATE INDEX IF NOT EXISTS idx_date ON ai_traffic(date)")
+    execute(conn, "CREATE INDEX IF NOT EXISTS idx_source ON ai_traffic(source_name)")
     conn.close()
 
 
@@ -210,23 +206,28 @@ def fetch_total_sessions(
 
 
 def store_results(rows: list[dict], total_by_date: dict):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn()
     fetched_at = datetime.utcnow().isoformat()
 
     # Clear existing data for the date range being refreshed
     if rows:
-        dates = {r["date"] for r in rows}
-        placeholders = ",".join("?" * len(dates))
-        conn.execute(f"DELETE FROM ai_traffic WHERE date IN ({placeholders})", list(dates))
+        dates = list({r["date"] for r in rows})
+        ph_list = ",".join([PH] * len(dates))
+        execute(conn, f"DELETE FROM ai_traffic WHERE date IN ({ph_list})", dates)
 
-    conn.executemany("""
+    # Build positional tuples for executemany
+    traffic_tuples = [
+        (r["date"], r["source_domain"], r["source_name"], r["source_category"],
+         r["country"], r["region"], r["city"], r["landing_page"],
+         r["sessions"], r["engaged_sessions"], r["conversions"], fetched_at)
+        for r in rows
+    ]
+    executemany(conn, f"""
         INSERT INTO ai_traffic
             (date, source_domain, source_name, source_category, country, region, city,
              landing_page, sessions, engaged_sessions, conversions, fetched_at)
-        VALUES
-            (:date, :source_domain, :source_name, :source_category, :country, :region, :city,
-             :landing_page, :sessions, :engaged_sessions, :conversions, :fetched_at)
-    """, [{**r, "fetched_at": fetched_at} for r in rows])
+        VALUES ({PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH},{PH})
+    """, traffic_tuples)
 
     # Compute per-date AI totals vs overall
     ai_by_date: dict[str, int] = {}
@@ -236,24 +237,23 @@ def store_results(rows: list[dict], total_by_date: dict):
     summary_rows = []
     for date, total in total_by_date.items():
         ai = ai_by_date.get(date, 0)
-        summary_rows.append({
-            "date": date,
-            "total_ai_sessions": ai,
-            "total_sessions": total,
-            "ai_share_pct": round(ai / total * 100, 2) if total else 0,
-            "fetched_at": fetched_at,
-        })
+        summary_rows.append((
+            date,
+            ai,
+            total,
+            round(ai / total * 100, 2) if total else 0,
+            fetched_at,
+        ))
 
     if summary_rows:
-        dates = [r["date"] for r in summary_rows]
-        placeholders = ",".join("?" * len(dates))
-        conn.execute(f"DELETE FROM daily_summary WHERE date IN ({placeholders})", dates)
-        conn.executemany("""
+        dates = [r[0] for r in summary_rows]
+        ph_list = ",".join([PH] * len(dates))
+        execute(conn, f"DELETE FROM daily_summary WHERE date IN ({ph_list})", dates)
+        executemany(conn, f"""
             INSERT INTO daily_summary (date, total_ai_sessions, total_sessions, ai_share_pct, fetched_at)
-            VALUES (:date, :total_ai_sessions, :total_sessions, :ai_share_pct, :fetched_at)
+            VALUES ({PH},{PH},{PH},{PH},{PH})
         """, summary_rows)
 
-    conn.commit()
     conn.close()
     return len(rows)
 
