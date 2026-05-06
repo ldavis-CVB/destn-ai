@@ -790,7 +790,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Nav bar + date range ──────────────────────────────────────────────────────
-pages_def  = ["Overview", "AI Citation Monitor", "Traffic Trends", "Geography", "Landing Pages", "Query Manager"]
+pages_def  = ["Overview", "AI Citations", "Traffic Trends", "Geography", "Landing Pages", "Queries"]
 pages_keys = ["overview", "citations", "traffic", "geo", "lp", "queries"]
 
 nav_col, date_col = st.columns([5, 1.5])
