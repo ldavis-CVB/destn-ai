@@ -65,7 +65,7 @@ except ImportError:
 # Allow importing from pipeline/
 sys.path.insert(0, str(Path(__file__).parent.parent / "pipeline"))
 try:
-    from db import get_conn, get_engine, fetchone as db_fetchone, PH, IS_POSTGRES, DB_PATH as _DB_PATH
+    from db import get_conn, get_engine, execute, fetchone as db_fetchone, PH, IS_POSTGRES, DB_PATH as _DB_PATH
     from sqlalchemy import text as _sa_text
     _HAS_DB = True
 except ImportError:
