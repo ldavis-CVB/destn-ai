@@ -253,6 +253,10 @@ div[data-testid="stVerticalBlock"]:has(> .stElementContainer .card-title) {{
 }}
 .st-key-nav_radio div[role="radiogroup"] input {{ display: none !important; }}
 .st-key-nav_radio div[role="radiogroup"] label > div:first-child {{ display: none !important; }}
+/* newer Streamlit nests the radio circle beside the label text */
+.st-key-nav_radio div[role="radiogroup"] label > div > div:not([data-testid="stMarkdownContainer"]),
+.st-key-cat_toggle div[role="radiogroup"] label > div > div:not([data-testid="stMarkdownContainer"]),
+.st-key-query_list div[role="radiogroup"] label > div > div:not([data-testid="stMarkdownContainer"]) {{ display: none !important; }}
 .st-key-nav_radio div[role="radiogroup"] label p,
 .st-key-cat_toggle div[role="radiogroup"] label p,
 .st-key-query_list div[role="radiogroup"] label p {{ font-size: inherit !important; font-weight: inherit !important; }}
