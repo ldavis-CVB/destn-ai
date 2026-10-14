@@ -12,6 +12,7 @@ RUN python -m textblob.download_corpora
 
 COPY dashboard/ dashboard/
 COPY pipeline/ pipeline/
+COPY .streamlit/ .streamlit/
 COPY data/.gitkeep data/
 
 # Install crontab

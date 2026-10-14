@@ -1,0 +1,14 @@
+# Force the light theme so text stays dark and readable even when the
+# viewer's OS/browser is in dark mode.
+[theme]
+base = "light"
+primaryColor = "#0576a6"
+backgroundColor = "#f4f7fa"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1b2a33"
+borderColor = "#dde4ea"
+baseRadius = "10px"
+font = "sans-serif"
+
+[browser]
+gatherUsageStats = false

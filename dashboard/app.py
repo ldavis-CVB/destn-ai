@@ -114,14 +114,14 @@ NAVY       = "#22302f"
 WHITE      = "#ffffff"
 GRAY_LIGHT = "#f4f7fa"
 GRAY_MID   = "#dde4ea"
-TEXT       = "#22302f"
-MUTED      = "#5a7080"
+TEXT       = "#1b2a33"
+MUTED      = "#4a5f6d"
 
 PLOTLY = dict(
     template="plotly_white",
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(color=TEXT, family="Segoe UI, sans-serif", size=12),
+    font=dict(color=TEXT, family="Inter, Segoe UI, sans-serif", size=13),
     margin=dict(l=8, r=8, t=36, b=8),
 )
 
@@ -137,28 +137,44 @@ st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+:root {{ color-scheme: light; }}
 *, html, body {{
   box-sizing: border-box;
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }}
 [data-testid="stAppViewContainer"] {{
   background: {GRAY_LIGHT};
+  color: {TEXT};
 }}
 [data-testid="stSidebar"] {{ display: none !important; }}
 .block-container {{
-  padding: 0 !important;
-  max-width: 100% !important;
+  padding: 20px 32px 48px !important;
+  max-width: 1500px !important;
+}}
+[data-testid="stCaptionContainer"], .stCaption {{ color: {MUTED} !important; font-size: 0.82rem !important; }}
+
+/* ── Bordered containers = cards ─────────────────────── */
+[data-testid="stVerticalBlockBorderWrapper"],
+div[data-testid="stVerticalBlock"]:has(> .stElementContainer .card-title) {{
+  background: {WHITE};
+  border-color: {GRAY_MID} !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 2px rgba(16,42,56,0.04), 0 4px 14px rgba(16,42,56,0.05);
 }}
 #MainMenu, footer, header {{ visibility: hidden; }}
 
 /* ── Brand header ─────────────────────────────────────── */
 .top-nav {{
-  background: #ffffff;
+  background: {WHITE};
   display: flex;
   align-items: center;
-  padding: 0 32px;
+  justify-content: space-between;
+  padding: 0 24px;
   height: 72px;
-  border-bottom: 2px solid {GRAY_MID};
+  border: 1px solid {GRAY_MID};
+  border-bottom: none;
+  border-radius: 14px 14px 0 0;
 }}
 .brand-badge {{
   background: {BLUE};
@@ -172,16 +188,24 @@ st.markdown(f"""
 }}
 .brand-sub {{
   color: {MUTED};
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}}
+/* nav + date row closes the header card */
+[data-testid="stHorizontalBlock"]:has(.st-key-nav_radio) {{
+  background: {WHITE};
+  border: 1px solid {GRAY_MID};
+  border-top: 1px solid {GRAY_LIGHT};
+  border-radius: 0 0 14px 14px;
+  padding: 4px 12px 8px;
+  margin-bottom: 28px;
+  align-items: center;
+  box-shadow: 0 4px 14px rgba(16,42,56,0.05);
 }}
 
 /* ── Nav pill bar (scoped to key class) ──────────────── */
-.st-key-nav_radio {{
-  background: {WHITE};
-  border-bottom: 1px solid {GRAY_MID};
-}}
+
 .st-key-nav_radio [data-testid="stWidgetLabel"] {{ display: none !important; }}
 .st-key-nav_radio div[role="radiogroup"] {{
   display: flex !important;
@@ -190,7 +214,7 @@ st.markdown(f"""
   align-items: center !important;
   gap: 2px !important;
   background: {WHITE} !important;
-  padding: 8px 20px !important;
+  padding: 6px 0 !important;
   margin: 0 !important;
   max-height: none !important;
   overflow-y: visible !important;
@@ -203,10 +227,10 @@ st.markdown(f"""
   border: none !important;
   border-bottom: none !important;
   border-radius: 6px !important;
-  color: {MUTED} !important;
-  font-size: 13px !important;
+  color: {TEXT} !important;
+  font-size: 14px !important;
   font-weight: 600 !important;
-  padding: 7px 18px !important;
+  padding: 8px 16px !important;
   cursor: pointer !important;
   white-space: nowrap !important;
   overflow: visible !important;
@@ -228,22 +252,28 @@ st.markdown(f"""
   font-weight: 700 !important;
 }}
 .st-key-nav_radio div[role="radiogroup"] input {{ display: none !important; }}
+.st-key-nav_radio div[role="radiogroup"] label > div:first-child {{ display: none !important; }}
+.st-key-nav_radio div[role="radiogroup"] label p,
+.st-key-cat_toggle div[role="radiogroup"] label p,
+.st-key-query_list div[role="radiogroup"] label p {{ font-size: inherit !important; font-weight: inherit !important; }}
+.st-key-nav_radio div[role="radiogroup"] label p,
+.st-key-cat_toggle div[role="radiogroup"] label p {{ color: {TEXT} !important; }}
+.st-key-nav_radio div[role="radiogroup"] label:has(input:checked) p,
+.st-key-cat_toggle div[role="radiogroup"] label:has(input:checked) p {{ color: {WHITE} !important; }}
+.st-key-query_list div[role="radiogroup"] label p {{ color: {TEXT} !important; }}
+.st-key-query_list div[role="radiogroup"] label:has(input:checked) p {{ color: {BLUE2} !important; }}
+.kpi {{ min-height: 118px; }}
 
 /* ── Date range selectbox in nav ─────────────────────── */
-.st-key-range_mode {{
-  background: {WHITE};
-  border-bottom: 1px solid {GRAY_MID};
-  padding: 0 !important;
-}}
+.st-key-range_mode {{ padding: 0 !important; }}
 .st-key-range_mode [data-testid="stWidgetLabel"] {{ display: none !important; }}
 .st-key-range_mode [data-testid="stSelectbox"] > div {{
   background: {GRAY_LIGHT} !important;
   border: 1px solid {GRAY_MID} !important;
   border-radius: 6px !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
   color: {TEXT} !important;
-  margin-top: 4px;
 }}
 .st-key-custom_dates [data-testid="stWidgetLabel"] {{ display: none !important; }}
 
@@ -259,8 +289,8 @@ st.markdown(f"""
 
 /* ── Page header ── */
 .page-header {{ margin-bottom: 22px; }}
-.page-title  {{ font-size: 1.35rem; font-weight: 800; color: {TEXT}; margin: 0; }}
-.page-sub    {{ font-size: 0.78rem; color: {MUTED}; margin-top: 3px; }}
+.page-title  {{ font-size: 1.6rem; font-weight: 800; color: {TEXT}; margin: 0; letter-spacing: -0.4px; }}
+.page-sub    {{ font-size: 0.92rem; color: {MUTED}; margin-top: 4px; }}
 
 /* ── Cards ── */
 .card {{
@@ -271,27 +301,27 @@ st.markdown(f"""
   margin-bottom: 16px;
 }}
 .card-title {{
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: {TEXT};
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 14px;
+  letter-spacing: -0.1px;
+  margin: 2px 0 6px;
 }}
 
 /* ── KPI cards ── */
 .kpi {{
   background: {WHITE};
   border: 1px solid {GRAY_MID};
-  border-top: 3px solid {BLUE};
-  border-radius: 10px;
-  padding: 16px 18px;
+  border-top: 4px solid {BLUE};
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(16,42,56,0.04), 0 4px 14px rgba(16,42,56,0.05);
+  height: 100%;
 }}
-.kpi-val {{ font-size: 1.85rem; font-weight: 800; color: {TEXT}; line-height: 1; }}
-.kpi-lbl {{ font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 1.2px; color: {MUTED}; margin-top: 5px; }}
-.kpi-up  {{ color: #2e7d32; font-size: 0.72rem; font-weight: 600; margin-top: 4px; }}
-.kpi-dn  {{ color: {RED};   font-size: 0.72rem; font-weight: 600; margin-top: 4px; }}
+.kpi-val {{ font-size: 2rem; font-weight: 800; color: {TEXT}; line-height: 1.05; letter-spacing: -0.5px; }}
+.kpi-lbl {{ font-size: 0.78rem; font-weight: 600; color: {MUTED}; margin-top: 8px; }}
+.kpi-up  {{ color: #2e7d32; font-size: 0.82rem; font-weight: 700; margin-top: 6px; }}
+.kpi-dn  {{ color: {RED};   font-size: 0.82rem; font-weight: 700; margin-top: 6px; }}
 
 /* ── Category toggle ── */
 .st-key-cat_toggle div[role="radiogroup"] {{
@@ -309,10 +339,10 @@ st.markdown(f"""
   background: {WHITE} !important;
   border: 1.5px solid {GRAY_MID} !important;
   border-radius: 20px !important;
-  color: {MUTED} !important;
-  font-size: 12px !important;
+  color: {TEXT} !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
-  padding: 5px 16px !important;
+  padding: 6px 16px !important;
   cursor: pointer !important;
   white-space: nowrap !important;
   max-width: none !important;
@@ -353,9 +383,9 @@ st.markdown(f"""
   border-bottom: 1px solid {GRAY_MID} !important;
   border-radius: 0 !important;
   color: {TEXT} !important;
-  font-size: 0.8rem !important;
+  font-size: 0.88rem !important;
   font-weight: 500 !important;
-  padding: 9px 14px !important;
+  padding: 10px 14px !important;
   cursor: pointer !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -394,13 +424,13 @@ st.markdown(f"""
 }}
 
 /* ── Misc overrides ── */
-[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
+[data-testid="stHorizontalBlock"] {{ gap: 16px; }}
 div.stButton > button {{
   background: {BLUE}; color: white; border: none;
-  border-radius: 6px; font-size: 0.78rem; font-weight: 600;
-  padding: 6px 14px; transition: background 0.15s;
+  border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+  padding: 8px 16px; transition: background 0.15s;
 }}
-div.stButton > button:hover {{ background: {BLUE2}; }}
+div.stButton > button:hover {{ background: {BLUE2}; color: white; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -817,11 +847,8 @@ with nav_col:
 
 with date_col:
     st.markdown(f"""
-    <div style="background:{WHITE}; border-bottom:1px solid {GRAY_MID};
-         padding:8px 12px 4px; display:flex; flex-direction:column; gap:4px;">
-      <div style="font-size:10px; font-weight:700; text-transform:uppercase;
-           letter-spacing:0.8px; color:{MUTED};">Date Range</div>
-    </div>""", unsafe_allow_html=True)
+    <div style="font-size:11px; font-weight:700; text-transform:uppercase;
+         letter-spacing:0.8px; color:{MUTED}; padding-top:6px;">Date range</div>""", unsafe_allow_html=True)
 
     range_mode = st.selectbox(
         "range",
@@ -894,6 +921,10 @@ probe_cited  = int((probe_df.groupby("query")["mentioned"].max() > 0).sum()) if 
 probe_rate   = probe_df["mentioned"].sum() / probe_total * 100 if probe_total else 0
 
 
+def card_title(text: str):
+    st.markdown(f'<div class="card-title">{_html.escape(text)}</div>', unsafe_allow_html=True)
+
+
 # ── KPI helper ────────────────────────────────────────────────────────────────
 def kpi(col, val, lbl, delta=None, suffix="", accent=BLUE):
     d = ""
@@ -909,7 +940,6 @@ def kpi(col, val, lbl, delta=None, suffix="", accent=BLUE):
     )
 
 
-st.markdown('<div class="page-wrap">', unsafe_allow_html=True)
 
 
 # ==============================================================================
@@ -934,57 +964,57 @@ if page == "overview":
     col_l, col_r = st.columns([3, 2])
 
     with col_l:
-        st.markdown('<div class="card"><div class="card-title">AI Sessions Over Time</div>', unsafe_allow_html=True)
-        if not df.empty:
-            fig = px.area(
-                df.groupby(["date","source_name"])["sessions"].sum().reset_index(),
-                x="date", y="sessions", color="source_name",
-                color_discrete_sequence=[BLUE, BLUE_LIGHT, "#a2ce37", "#f97316", "#9c27b0"],
-                labels={"sessions":"Sessions","date":"","source_name":"Source"}
-            )
-            fig.update_layout(height=240, hovermode="x unified", legend_title="", **PLOTLY)
-            fig.update_traces(line_width=1.5)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.caption("No traffic data for this period.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('AI Sessions Over Time')
+            if not df.empty:
+                fig = px.area(
+                    df.groupby(["date","source_name"])["sessions"].sum().reset_index(),
+                    x="date", y="sessions", color="source_name",
+                    color_discrete_sequence=[BLUE, BLUE_LIGHT, "#a2ce37", "#f97316", "#9c27b0"],
+                    labels={"sessions":"Sessions","date":"","source_name":"Source"}
+                )
+                fig.update_layout(height=240, hovermode="x unified", legend_title="", **PLOTLY)
+                fig.update_traces(line_width=1.5)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.caption("No traffic data for this period.")
 
     with col_r:
-        st.markdown('<div class="card"><div class="card-title">By AI Tool</div>', unsafe_allow_html=True)
-        if not src.empty:
-            fig2 = px.pie(src, values="sessions", names="source_name", hole=0.58,
-                          color_discrete_sequence=[BLUE, BLUE_LIGHT, "#a2ce37", "#f97316", "#9c27b0"])
-            fig2.update_layout(height=240, **PLOTLY)
-            st.plotly_chart(fig2, use_container_width=True)
-        else:
-            st.caption("No traffic data for this period.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('By AI Tool')
+            if not src.empty:
+                fig2 = px.pie(src, values="sessions", names="source_name", hole=0.58,
+                              color_discrete_sequence=[BLUE, BLUE_LIGHT, "#a2ce37", "#f97316", "#9c27b0"])
+                fig2.update_layout(height=240, **PLOTLY)
+                st.plotly_chart(fig2, use_container_width=True)
+            else:
+                st.caption("No traffic data for this period.")
 
     col_a, col_b = st.columns(2)
     with col_a:
-        st.markdown('<div class="card"><div class="card-title">AI Traffic Share Trend</div>', unsafe_allow_html=True)
-        if not summary.empty:
-            fig3 = px.line(summary, x="date", y="ai_share_pct", markers=True,
-                           labels={"ai_share_pct":"Share (%)","date":""})
-            fig3.update_traces(line_color=BLUE, line_width=2,
-                               fill="tozeroy", fillcolor="rgba(5,118,166,0.07)")
-            fig3.update_layout(height=190, **PLOTLY)
-            st.plotly_chart(fig3, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('AI Traffic Share Trend')
+            if not summary.empty:
+                fig3 = px.line(summary, x="date", y="ai_share_pct", markers=True,
+                               labels={"ai_share_pct":"Share (%)","date":""})
+                fig3.update_traces(line_color=BLUE, line_width=2,
+                                   fill="tozeroy", fillcolor="rgba(5,118,166,0.07)")
+                fig3.update_layout(height=190, **PLOTLY)
+                st.plotly_chart(fig3, use_container_width=True)
 
     with col_b:
-        st.markdown('<div class="card"><div class="card-title">AI Mention Rate Trend</div>', unsafe_allow_html=True)
-        if not probe_df.empty:
-            dr = (probe_df.groupby("run_date")
-                  .agg(t=("mentioned","count"), c=("mentioned","sum"))
-                  .assign(rate=lambda x: x.c/x.t*100).reset_index())
-            fig4 = px.line(dr, x="run_date", y="rate", markers=True,
-                           labels={"rate":"Mention %","run_date":""})
-            fig4.update_traces(line_color=GREEN, line_width=2,
-                               fill="tozeroy", fillcolor="rgba(162,206,55,0.08)")
-            fig4.update_layout(height=190, **PLOTLY)
-            st.plotly_chart(fig4, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('AI Mention Rate Trend')
+            if not probe_df.empty:
+                dr = (probe_df.groupby("run_date")
+                      .agg(t=("mentioned","count"), c=("mentioned","sum"))
+                      .assign(rate=lambda x: x.c/x.t*100).reset_index())
+                fig4 = px.line(dr, x="run_date", y="rate", markers=True,
+                               labels={"rate":"Mention %","run_date":""})
+                fig4.update_traces(line_color=GREEN, line_width=2,
+                                   fill="tozeroy", fillcolor="rgba(162,206,55,0.08)")
+                fig4.update_layout(height=190, **PLOTLY)
+                st.plotly_chart(fig4, use_container_width=True)
 
 
 # ==============================================================================
@@ -1153,7 +1183,7 @@ elif page == "citations":
             height=150,
             margin=dict(l=16, r=16, t=32, b=4),
             paper_bgcolor=WHITE,
-            font=dict(family="Segoe UI, sans-serif"),
+            font=dict(family="Inter, Segoe UI, sans-serif", color=TEXT),
         )
         st.markdown(
             f'<div style="background:{WHITE}; border:1px solid {GRAY_MID}; '
@@ -1470,107 +1500,107 @@ elif page == "citations":
     col_dest, col_comp, col_gap = st.columns(3)
 
     with col_dest:
-        st.markdown('<div class="card"><div class="card-title">Our Destinations Mentioned</div>', unsafe_allow_html=True)
-        dest_counts = {d: {"c": 0, "t": 0} for d in OUR_DESTINATIONS}
-        for _, row in probe_df.iterrows():
-            dmap = row.get("our_destinations") or {}
-            for d in OUR_DESTINATIONS:
-                dest_counts[d]["t"] += 1
-                if dmap.get(d):
-                    dest_counts[d]["c"] += 1
-        dest_rows = [{"Destination": d,
-                      "Rate": round(v["c"] / max(v["t"], 1) * 100, 1)}
-                     for d, v in dest_counts.items()
-                     if v["c"] > 0]
-        dest_rows.sort(key=lambda x: x["Rate"])
-        if dest_rows:
-            ddf = pd.DataFrame(dest_rows)
-            DEST_BAR_COLORS = {
-                "Wilmington":         BLUE,
-                "Wrightsville Beach": "#1565c0",
-                "Carolina Beach":     "#6a1b9a",
-                "Kure Beach":         "#e65100",
-                "Figure Eight":       "#880e4f",
-                "Cape Fear Region":   GREEN,
-            }
-            fig_d = px.bar(ddf, x="Rate", y="Destination", orientation="h",
-                           labels={"Rate": "Mention Rate (%)"})
-            fig_d.update_traces(
-                marker_color=[DEST_BAR_COLORS.get(d, BLUE) for d in ddf["Destination"]]
-            )
-            fig_d.update_layout(height=280, **PLOTLY)
-            st.plotly_chart(fig_d, use_container_width=True)
-        else:
-            st.caption("No destination mentions detected yet.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('Our Destinations Mentioned')
+            dest_counts = {d: {"c": 0, "t": 0} for d in OUR_DESTINATIONS}
+            for _, row in probe_df.iterrows():
+                dmap = row.get("our_destinations") or {}
+                for d in OUR_DESTINATIONS:
+                    dest_counts[d]["t"] += 1
+                    if dmap.get(d):
+                        dest_counts[d]["c"] += 1
+            dest_rows = [{"Destination": d,
+                          "Rate": round(v["c"] / max(v["t"], 1) * 100, 1)}
+                         for d, v in dest_counts.items()
+                         if v["c"] > 0]
+            dest_rows.sort(key=lambda x: x["Rate"])
+            if dest_rows:
+                ddf = pd.DataFrame(dest_rows)
+                DEST_BAR_COLORS = {
+                    "Wilmington":         BLUE,
+                    "Wrightsville Beach": "#1565c0",
+                    "Carolina Beach":     "#6a1b9a",
+                    "Kure Beach":         "#e65100",
+                    "Figure Eight":       "#880e4f",
+                    "Cape Fear Region":   GREEN,
+                }
+                fig_d = px.bar(ddf, x="Rate", y="Destination", orientation="h",
+                               labels={"Rate": "Mention Rate (%)"})
+                fig_d.update_traces(
+                    marker_color=[DEST_BAR_COLORS.get(d, BLUE) for d in ddf["Destination"]]
+                )
+                fig_d.update_layout(height=280, **PLOTLY)
+                st.plotly_chart(fig_d, use_container_width=True)
+            else:
+                st.caption("No destination mentions detected yet.")
 
     with col_comp:
-        st.markdown('<div class="card"><div class="card-title">Competitor Mention Rate</div>', unsafe_allow_html=True)
-        comp_counts = {}
-        for _, row in probe_df.iterrows():
-            for comp, hit in row["competitors"].items():
-                comp_counts.setdefault(comp, {"c":0,"t":0})
-                comp_counts[comp]["t"] += 1
-                if hit: comp_counts[comp]["c"] += 1
-        comp_rows = [{"Destination":"Wilmington & Beaches","Rate":round(probe_rate,1),"ours":True}]
-        for comp, v in comp_counts.items():
-            comp_rows.append({"Destination":comp,"Rate":round(v["c"]/max(v["t"],1)*100,1),"ours":False})
-        cdf = pd.DataFrame(comp_rows).sort_values("Rate", ascending=True)
-        fig_c = px.bar(cdf, x="Rate", y="Destination", orientation="h",
-                       labels={"Rate":"Mention Rate (%)"})
-        fig_c.update_traces(marker_color=[BLUE if r else GRAY_MID for r in cdf["ours"]])
-        fig_c.update_layout(height=300, **PLOTLY)
-        st.plotly_chart(fig_c, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('Competitor Mention Rate')
+            comp_counts = {}
+            for _, row in probe_df.iterrows():
+                for comp, hit in row["competitors"].items():
+                    comp_counts.setdefault(comp, {"c":0,"t":0})
+                    comp_counts[comp]["t"] += 1
+                    if hit: comp_counts[comp]["c"] += 1
+            comp_rows = [{"Destination":"Wilmington & Beaches","Rate":round(probe_rate,1),"ours":True}]
+            for comp, v in comp_counts.items():
+                comp_rows.append({"Destination":comp,"Rate":round(v["c"]/max(v["t"],1)*100,1),"ours":False})
+            cdf = pd.DataFrame(comp_rows).sort_values("Rate", ascending=True)
+            fig_c = px.bar(cdf, x="Rate", y="Destination", orientation="h",
+                           labels={"Rate":"Mention Rate (%)"})
+            fig_c.update_traces(marker_color=[BLUE if r else GRAY_MID for r in cdf["ours"]])
+            fig_c.update_layout(height=300, **PLOTLY)
+            st.plotly_chart(fig_c, use_container_width=True)
 
     with col_gap:
-        st.markdown('<div class="card"><div class="card-title">Gap Analysis — click a row for content ideas</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('Gap Analysis — click a row for content ideas')
 
-        # Build gap table ranked by opportunity
-        gap_raw = (probe_df[probe_df["mentioned"]==0]
-                   .groupby("query").size().reset_index(name="missed"))
-        total_runs = (probe_df.groupby("query").size().reset_index(name="total"))
-        gap_raw = gap_raw.merge(total_runs, on="query", how="left")
-        gap_raw["category"]  = gap_raw["query"].apply(_query_cat)
-        cat_w = {"local": 1.3, "regional": 1.1, "national": 0.9}
-        gap_raw["opp_score"] = (
-            gap_raw["missed"] / gap_raw["total"].clip(lower=1) * 100
-            * gap_raw["category"].map(cat_w).fillna(1.0)
-        ).round(0).astype(int)
-        gap_raw = gap_raw.sort_values("opp_score", ascending=False).head(16).reset_index(drop=True)
-        gap_raw["rank"] = [f"#{i+1}" for i in range(len(gap_raw))]
+            # Build gap table ranked by opportunity
+            gap_raw = (probe_df[probe_df["mentioned"]==0]
+                       .groupby("query").size().reset_index(name="missed"))
+            total_runs = (probe_df.groupby("query").size().reset_index(name="total"))
+            gap_raw = gap_raw.merge(total_runs, on="query", how="left")
+            gap_raw["category"]  = gap_raw["query"].apply(_query_cat)
+            cat_w = {"local": 1.3, "regional": 1.1, "national": 0.9}
+            gap_raw["opp_score"] = (
+                gap_raw["missed"] / gap_raw["total"].clip(lower=1) * 100
+                * gap_raw["category"].map(cat_w).fillna(1.0)
+            ).round(0).astype(int)
+            gap_raw = gap_raw.sort_values("opp_score", ascending=False).head(16).reset_index(drop=True)
+            gap_raw["rank"] = [f"#{i+1}" for i in range(len(gap_raw))]
 
-        if gap_raw.empty:
-            st.success("Cited in every tracked query!")
-            gap_sel = None
-        else:
-            gap_display = pd.DataFrame({
-                "Rank":       gap_raw["rank"],
-                "Query":      gap_raw["query"],
-                "Category":   gap_raw["category"].str.title(),
-                "Missed":     gap_raw["missed"],
-                "Opportunity":gap_raw["opp_score"].astype(str) + "%",
-            })
-            gap_evt = st.dataframe(
-                gap_display,
-                hide_index=True,
-                use_container_width=True,
-                height=360,
-                on_select="rerun",
-                selection_mode="single-row",
-                key="gap_table",
-                column_config={
-                    "Rank":        st.column_config.TextColumn(width=55),
-                    "Query":       st.column_config.TextColumn(width="large"),
-                    "Category":    st.column_config.TextColumn(width=80),
-                    "Missed":      st.column_config.NumberColumn(width=65),
-                    "Opportunity": st.column_config.TextColumn(width=90),
-                },
-            )
-            sel = gap_evt.selection.rows
-            gap_sel = gap_raw.iloc[sel[0]] if sel else None
+            if gap_raw.empty:
+                st.success("Cited in every tracked query!")
+                gap_sel = None
+            else:
+                gap_display = pd.DataFrame({
+                    "Rank":       gap_raw["rank"],
+                    "Query":      gap_raw["query"],
+                    "Category":   gap_raw["category"].str.title(),
+                    "Missed":     gap_raw["missed"],
+                    "Opportunity":gap_raw["opp_score"].astype(str) + "%",
+                })
+                gap_evt = st.dataframe(
+                    gap_display,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=360,
+                    on_select="rerun",
+                    selection_mode="single-row",
+                    key="gap_table",
+                    column_config={
+                        "Rank":        st.column_config.TextColumn(width=55),
+                        "Query":       st.column_config.TextColumn(width="large"),
+                        "Category":    st.column_config.TextColumn(width=80),
+                        "Missed":      st.column_config.NumberColumn(width=65),
+                        "Opportunity": st.column_config.TextColumn(width=90),
+                    },
+                )
+                sel = gap_evt.selection.rows
+                gap_sel = gap_raw.iloc[sel[0]] if sel else None
 
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Content suggestion panel (full width, below both charts) ─────────────
     if gap_sel is not None:
@@ -1606,58 +1636,58 @@ elif page == "citations":
 
     # ── Top Websites Citing Our Destinations ─────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="card"><div class="card-title">Top Websites Mentioning Our Destinations</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        card_title('Top Websites Mentioning Our Destinations')
 
-    from urllib.parse import urlparse
-    domain_data = {}
-    for _, row in probe_df.iterrows():
-        cits = row.get("citations", [])
-        if not isinstance(cits, list): continue
-        dests = row.get("our_destinations", {})
-        if not isinstance(dests, dict): continue
-        dest_list = [k for k, v in dests.items() if v]
-        for url in cits:
-            try:
-                domain = urlparse(url).netloc.replace("www.", "")
-                if not domain: continue
-                if domain not in domain_data:
-                    domain_data[domain] = {"appearances": 0, "destinations": set(), "queries": set(), "urls": []}
-                domain_data[domain]["appearances"] += 1
-                domain_data[domain]["destinations"].update(dest_list)
-                domain_data[domain]["queries"].add(row.get("query",""))
-                if url not in domain_data[domain]["urls"]:
-                    domain_data[domain]["urls"].append(url)
-            except Exception:
-                continue
+        from urllib.parse import urlparse
+        domain_data = {}
+        for _, row in probe_df.iterrows():
+            cits = row.get("citations", [])
+            if not isinstance(cits, list): continue
+            dests = row.get("our_destinations", {})
+            if not isinstance(dests, dict): continue
+            dest_list = [k for k, v in dests.items() if v]
+            for url in cits:
+                try:
+                    domain = urlparse(url).netloc.replace("www.", "")
+                    if not domain: continue
+                    if domain not in domain_data:
+                        domain_data[domain] = {"appearances": 0, "destinations": set(), "queries": set(), "urls": []}
+                    domain_data[domain]["appearances"] += 1
+                    domain_data[domain]["destinations"].update(dest_list)
+                    domain_data[domain]["queries"].add(row.get("query",""))
+                    if url not in domain_data[domain]["urls"]:
+                        domain_data[domain]["urls"].append(url)
+                except Exception:
+                    continue
 
-    if domain_data:
-        src_rows = [
-            {
-                "Domain":       d,
-                "Appearances":  v["appearances"],
-                "Destinations": ", ".join(sorted(v["destinations"])) or "—",
-                "Queries":      len(v["queries"]),
-                "Sample URL":   v["urls"][0] if v["urls"] else "",
-            }
-            for d, v in domain_data.items()
-        ]
-        src_df = pd.DataFrame(src_rows).sort_values("Appearances", ascending=False).reset_index(drop=True)
-        st.dataframe(
-            src_df,
-            hide_index=True,
-            use_container_width=True,
-            height=400,
-            column_config={
-                "Domain":       st.column_config.TextColumn("Domain",        width="medium"),
-                "Appearances":  st.column_config.NumberColumn("Appearances", width=110),
-                "Destinations": st.column_config.TextColumn("Destinations",  width="large"),
-                "Queries":      st.column_config.NumberColumn("Queries",     width=90),
-                "Sample URL":   st.column_config.LinkColumn("Sample URL",    width="large"),
-            },
-        )
-    else:
-        st.caption("No citation data yet — citations populate after probe runs.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        if domain_data:
+            src_rows = [
+                {
+                    "Domain":       d,
+                    "Appearances":  v["appearances"],
+                    "Destinations": ", ".join(sorted(v["destinations"])) or "—",
+                    "Queries":      len(v["queries"]),
+                    "Sample URL":   v["urls"][0] if v["urls"] else "",
+                }
+                for d, v in domain_data.items()
+            ]
+            src_df = pd.DataFrame(src_rows).sort_values("Appearances", ascending=False).reset_index(drop=True)
+            st.dataframe(
+                src_df,
+                hide_index=True,
+                use_container_width=True,
+                height=400,
+                column_config={
+                    "Domain":       st.column_config.TextColumn("Domain",        width="medium"),
+                    "Appearances":  st.column_config.NumberColumn("Appearances", width=110),
+                    "Destinations": st.column_config.TextColumn("Destinations",  width="large"),
+                    "Queries":      st.column_config.NumberColumn("Queries",     width=90),
+                    "Sample URL":   st.column_config.LinkColumn("Sample URL",    width="large"),
+                },
+            )
+        else:
+            st.caption("No citation data yet — citations populate after probe runs.")
 
 
 # ==============================================================================
@@ -1722,50 +1752,50 @@ elif page == "traffic":
     kpi(c4, str(n_sources), "Active Sources", accent="#7b1fa2")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown('<div class="card"><div class="card-title">Sessions by AI Source Over Time</div>', unsafe_allow_html=True)
-    fig = px.area(
-        df.groupby(["date","source_name"])["sessions"].sum().reset_index(),
-        x="date", y="sessions", color="source_name",
-        color_discrete_sequence=[BLUE, BLUE_LIGHT, GREEN, "#f97316", "#9c27b0"],
-        labels={"sessions":"Sessions","date":"","source_name":"Source"}
-    )
-    fig.update_layout(height=300, hovermode="x unified", legend_title="", **PLOTLY)
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        card_title('Sessions by AI Source Over Time')
+        fig = px.area(
+            df.groupby(["date","source_name"])["sessions"].sum().reset_index(),
+            x="date", y="sessions", color="source_name",
+            color_discrete_sequence=[BLUE, BLUE_LIGHT, GREEN, "#f97316", "#9c27b0"],
+            labels={"sessions":"Sessions","date":"","source_name":"Source"}
+        )
+        fig.update_layout(height=300, hovermode="x unified", legend_title="", **PLOTLY)
+        st.plotly_chart(fig, use_container_width=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="card"><div class="card-title">Share by AI Tool</div>', unsafe_allow_html=True)
-        fig2 = px.pie(src, values="sessions", names="source_name", hole=0.55,
-                      color_discrete_sequence=[BLUE, BLUE_LIGHT, GREEN, "#f97316", "#9c27b0"])
-        fig2.update_layout(height=260, **PLOTLY)
-        st.plotly_chart(fig2, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('Share by AI Tool')
+            fig2 = px.pie(src, values="sessions", names="source_name", hole=0.55,
+                          color_discrete_sequence=[BLUE, BLUE_LIGHT, GREEN, "#f97316", "#9c27b0"])
+            fig2.update_layout(height=260, **PLOTLY)
+            st.plotly_chart(fig2, use_container_width=True)
     with c2:
-        st.markdown('<div class="card"><div class="card-title">AI Traffic Share Trend</div>', unsafe_allow_html=True)
-        if not summary.empty:
-            fig3 = px.line(summary, x="date", y="ai_share_pct", markers=True,
-                           labels={"ai_share_pct":"Share (%)","date":""})
-            fig3.update_traces(line_color=BLUE, line_width=2,
-                               fill="tozeroy", fillcolor="rgba(5,118,166,0.07)")
-            fig3.update_layout(height=260, **PLOTLY)
-            st.plotly_chart(fig3, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('AI Traffic Share Trend')
+            if not summary.empty:
+                fig3 = px.line(summary, x="date", y="ai_share_pct", markers=True,
+                               labels={"ai_share_pct":"Share (%)","date":""})
+                fig3.update_traces(line_color=BLUE, line_width=2,
+                                   fill="tozeroy", fillcolor="rgba(5,118,166,0.07)")
+                fig3.update_layout(height=260, **PLOTLY)
+                st.plotly_chart(fig3, use_container_width=True)
 
-    st.markdown('<div class="card"><div class="card-title">Source Performance Table</div>', unsafe_allow_html=True)
-    disp = src.copy()
-    disp["eng_rate"]  = disp["eng_rate"].round(1).astype(str) + "%"
-    disp["conv_rate"] = disp["conv_rate"].round(1).astype(str) + "%"
-    disp["share"]     = disp["share"].round(1).astype(str) + "%"
-    st.dataframe(
-        disp.rename(columns={
-            "source_name":"AI Tool","sessions":"Sessions","share":"Share",
-            "conversions":"Conversions","engaged":"Engaged",
-            "eng_rate":"Engaged Rate","conv_rate":"Conv Rate"
-        })[["AI Tool","Sessions","Share","Engaged","Engaged Rate","Conversions","Conv Rate"]],
-        hide_index=True, use_container_width=True
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        card_title('Source Performance Table')
+        disp = src.copy()
+        disp["eng_rate"]  = disp["eng_rate"].round(1).astype(str) + "%"
+        disp["conv_rate"] = disp["conv_rate"].round(1).astype(str) + "%"
+        disp["share"]     = disp["share"].round(1).astype(str) + "%"
+        st.dataframe(
+            disp.rename(columns={
+                "source_name":"AI Tool","sessions":"Sessions","share":"Share",
+                "conversions":"Conversions","engaged":"Engaged",
+                "eng_rate":"Engaged Rate","conv_rate":"Conv Rate"
+            })[["AI Tool","Sessions","Share","Engaged","Engaged Rate","Conversions","Conv Rate"]],
+            hide_index=True, use_container_width=True
+        )
 
 
 # ==============================================================================
@@ -1782,42 +1812,41 @@ elif page == "geo":
         st.info("No traffic data.")
         st.stop()
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    geo = df.groupby("country")["sessions"].sum().reset_index()
-    fig_map = px.choropleth(
-        geo, locations="country", locationmode="country names",
-        color="sessions", hover_name="country",
-        color_continuous_scale=[[0, BLUE_PALE], [1, NAVY]],
-        title="Visitors by Country"
-    )
-    fig_map.update_layout(
-        height=380,
-        geo=dict(showframe=False, bgcolor="rgba(0,0,0,0)",
-                 showcoastlines=True, coastlinecolor=GRAY_MID),
-        **PLOTLY
-    )
-    st.plotly_chart(fig_map, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        geo = df.groupby("country")["sessions"].sum().reset_index()
+        fig_map = px.choropleth(
+            geo, locations="country", locationmode="country names",
+            color="sessions", hover_name="country",
+            color_continuous_scale=[[0, BLUE_PALE], [1, NAVY]],
+            title="Visitors by Country"
+        )
+        fig_map.update_layout(
+            height=380,
+            geo=dict(showframe=False, bgcolor="rgba(0,0,0,0)",
+                     showcoastlines=True, coastlinecolor=GRAY_MID),
+            **PLOTLY
+        )
+        st.plotly_chart(fig_map, use_container_width=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="card"><div class="card-title">Top US States</div>', unsafe_allow_html=True)
-        us = df[df["country"]=="United States"]
-        if not us.empty:
-            r = us.groupby("region")["sessions"].sum().reset_index().sort_values("sessions",ascending=False).head(14)
-            fig_r = px.bar(r, x="sessions", y="region", orientation="h",
-                           color="sessions", color_continuous_scale=[[0,BLUE_PALE],[1,BLUE]])
-            fig_r.update_layout(height=360, yaxis={"categoryorder":"total ascending"}, **PLOTLY)
-            st.plotly_chart(fig_r, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('Top US States')
+            us = df[df["country"]=="United States"]
+            if not us.empty:
+                r = us.groupby("region")["sessions"].sum().reset_index().sort_values("sessions",ascending=False).head(14)
+                fig_r = px.bar(r, x="sessions", y="region", orientation="h",
+                               color="sessions", color_continuous_scale=[[0,BLUE_PALE],[1,BLUE]])
+                fig_r.update_layout(height=360, yaxis={"categoryorder":"total ascending"}, **PLOTLY)
+                st.plotly_chart(fig_r, use_container_width=True)
     with c2:
-        st.markdown('<div class="card"><div class="card-title">Top Cities</div>', unsafe_allow_html=True)
-        cities = df.groupby("city")["sessions"].sum().reset_index().sort_values("sessions",ascending=False).head(14)
-        fig_c = px.bar(cities, x="sessions", y="city", orientation="h",
-                       color="sessions", color_continuous_scale=[[0,"#f0fdf4"],[1,GREEN]])
-        fig_c.update_layout(height=360, yaxis={"categoryorder":"total ascending"}, **PLOTLY)
-        st.plotly_chart(fig_c, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            card_title('Top Cities')
+            cities = df.groupby("city")["sessions"].sum().reset_index().sort_values("sessions",ascending=False).head(14)
+            fig_c = px.bar(cities, x="sessions", y="city", orientation="h",
+                           color="sessions", color_continuous_scale=[[0,"#f0fdf4"],[1,GREEN]])
+            fig_c.update_layout(height=360, yaxis={"categoryorder":"total ascending"}, **PLOTLY)
+            st.plotly_chart(fig_c, use_container_width=True)
 
 
 # ==============================================================================
@@ -1841,28 +1870,27 @@ elif page == "lp":
     pages_data["conv_rate"]    = (pages_data["conversions"]/pages_data["sessions"]*100).round(1)
     pages_data["engaged_rate"] = (pages_data["engaged"]/pages_data["sessions"]*100).round(1)
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    fig_p = px.bar(
-        pages_data.head(15), x="sessions", y="landing_page", orientation="h",
-        color="engaged_rate",
-        color_continuous_scale=[[0,BLUE_PALE],[0.5,BLUE],[1,GREEN]],
-        title="Top Landing Pages  (colored by engagement rate)",
-        labels={"landing_page":"","sessions":"Sessions","engaged_rate":"Engaged %"}
-    )
-    fig_p.update_layout(height=480, yaxis={"categoryorder":"total ascending"}, **PLOTLY)
-    st.plotly_chart(fig_p, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        fig_p = px.bar(
+            pages_data.head(15), x="sessions", y="landing_page", orientation="h",
+            color="engaged_rate",
+            color_continuous_scale=[[0,BLUE_PALE],[0.5,BLUE],[1,GREEN]],
+            title="Top Landing Pages  (colored by engagement rate)",
+            labels={"landing_page":"","sessions":"Sessions","engaged_rate":"Engaged %"}
+        )
+        fig_p.update_layout(height=480, yaxis={"categoryorder":"total ascending"}, **PLOTLY)
+        st.plotly_chart(fig_p, use_container_width=True)
 
-    st.markdown('<div class="card"><div class="card-title">All Pages</div>', unsafe_allow_html=True)
-    st.dataframe(
-        pages_data.rename(columns={
-            "landing_page":"Page","sessions":"Sessions",
-            "conversions":"Conversions","conv_rate":"Conv %",
-            "engaged":"Engaged","engaged_rate":"Engaged %"
-        }),
-        hide_index=True, use_container_width=True
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        card_title('All Pages')
+        st.dataframe(
+            pages_data.rename(columns={
+                "landing_page":"Page","sessions":"Sessions",
+                "conversions":"Conversions","conv_rate":"Conv %",
+                "engaged":"Engaged","engaged_rate":"Engaged %"
+            }),
+            hide_index=True, use_container_width=True
+        )
 
 
 # ==============================================================================
@@ -1877,68 +1905,68 @@ elif page == "queries":
     )
 
     # ── Add new query ─────────────────────────────────────────────────────────
-    st.markdown('<div class="card"><div class="card-title">Add Custom Query</div>', unsafe_allow_html=True)
-    with st.form("add_query_form", clear_on_submit=True):
-        new_q = st.text_input(
-            "Query text",
-            placeholder='e.g. "best beach wedding venues in North Carolina"',
-            help="Enter the exact question you want AI tools to be probed with."
-        )
-        new_cat = st.selectbox(
-            "Category",
-            ["local", "regional", "national"],
-            index=2,
-            help="local = drive-market queries  ·  regional = NC/state-level  ·  national = East Coast / US-wide"
-        )
-        submitted = st.form_submit_button("➕ Add Query", use_container_width=True)
-        if submitted:
-            q = new_q.strip()
-            if not q:
-                st.warning("Please enter a query.")
-            else:
-                try:
-                    _cq_write(
-                        f"INSERT INTO custom_queries (query, category, active, created_at) VALUES ({PH},{PH},1,{PH})",
-                        (q, new_cat, datetime.utcnow().isoformat())
-                    )
-                    st.success(f"✅ Added: *{q}*  ·  category: **{new_cat}** — will run on next probe.")
-                except Exception as _ins_e:
-                    if "unique" in str(_ins_e).lower() or "duplicate" in str(_ins_e).lower():
-                        st.warning("That query already exists.")
-                    else:
-                        st.error(f"Error saving query: {_ins_e}")
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        card_title('Add Custom Query')
+        with st.form("add_query_form", clear_on_submit=True):
+            new_q = st.text_input(
+                "Query text",
+                placeholder='e.g. "best beach wedding venues in North Carolina"',
+                help="Enter the exact question you want AI tools to be probed with."
+            )
+            new_cat = st.selectbox(
+                "Category",
+                ["local", "regional", "national"],
+                index=2,
+                help="local = drive-market queries  ·  regional = NC/state-level  ·  national = East Coast / US-wide"
+            )
+            submitted = st.form_submit_button("➕ Add Query", use_container_width=True)
+            if submitted:
+                q = new_q.strip()
+                if not q:
+                    st.warning("Please enter a query.")
+                else:
+                    try:
+                        _cq_write(
+                            f"INSERT INTO custom_queries (query, category, active, created_at) VALUES ({PH},{PH},1,{PH})",
+                            (q, new_cat, datetime.utcnow().isoformat())
+                        )
+                        st.success(f"✅ Added: *{q}*  ·  category: **{new_cat}** — will run on next probe.")
+                    except Exception as _ins_e:
+                        if "unique" in str(_ins_e).lower() or "duplicate" in str(_ins_e).lower():
+                            st.warning("That query already exists.")
+                        else:
+                            st.error(f"Error saving query: {_ins_e}")
 
     # ── Custom queries table ──────────────────────────────────────────────────
     cq_df = load_custom_queries_df()
-    st.markdown('<div class="card"><div class="card-title">Your Custom Queries</div>', unsafe_allow_html=True)
-    CAT_COLORS = {"local": "#0576a6", "regional": "#2e7d32", "national": "#7b1fa2"}
+    with st.container(border=True):
+        card_title('Your Custom Queries')
+        CAT_COLORS = {"local": "#0576a6", "regional": "#2e7d32", "national": "#7b1fa2"}
 
-    if cq_df.empty:
-        st.info("No custom queries yet — add one above and it will be included in every future probe run.")
-    else:
-        for _, row in cq_df.iterrows():
-            col_q, col_cat, col_tog, col_del = st.columns([6, 1.2, 1, 0.8])
-            status_icon = "🟢" if row["active"] else "⚪"
-            col_q.markdown(f"{status_icon} {row['query']}")
-            cat_color = CAT_COLORS.get(row["category"], MUTED)
-            col_cat.markdown(
-                f'<span style="background:{cat_color}18;color:{cat_color};padding:2px 8px;'
-                f'border-radius:10px;font-size:0.78rem;font-weight:600;">{row["category"]}</span>',
-                unsafe_allow_html=True
-            )
-            tog_label = "Pause" if row["active"] else "Resume"
-            if col_tog.button(tog_label, key=f"tog_{row['id']}"):
-                _cq_write(
-                    f"UPDATE custom_queries SET active = {PH} WHERE id = {PH}",
-                    (0 if row["active"] else 1, int(row["id"]))
+        if cq_df.empty:
+            st.info("No custom queries yet — add one above and it will be included in every future probe run.")
+        else:
+            for _, row in cq_df.iterrows():
+                col_q, col_cat, col_tog, col_del = st.columns([6, 1.2, 1, 0.8])
+                status_icon = "🟢" if row["active"] else "⚪"
+                col_q.markdown(f"{status_icon} {row['query']}")
+                cat_color = CAT_COLORS.get(row["category"], MUTED)
+                col_cat.markdown(
+                    f'<span style="background:{cat_color}18;color:{cat_color};padding:2px 8px;'
+                    f'border-radius:10px;font-size:0.78rem;font-weight:600;">{row["category"]}</span>',
+                    unsafe_allow_html=True
                 )
-                st.rerun()
-            if col_del.button("🗑", key=f"del_{row['id']}", help="Delete permanently"):
-                _cq_write(f"DELETE FROM custom_queries WHERE id = {PH}", (int(row["id"]),))
-                st.rerun()
+                tog_label = "Pause" if row["active"] else "Resume"
+                if col_tog.button(tog_label, key=f"tog_{row['id']}"):
+                    _cq_write(
+                        f"UPDATE custom_queries SET active = {PH} WHERE id = {PH}",
+                        (0 if row["active"] else 1, int(row["id"]))
+                    )
+                    st.rerun()
+                if col_del.button("🗑", key=f"del_{row['id']}", help="Delete permanently"):
+                    _cq_write(f"DELETE FROM custom_queries WHERE id = {PH}", (int(row["id"]),))
+                    st.rerun()
 
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Built-in queries reference ────────────────────────────────────────────
     with st.expander(f"📋 Built-in queries ({len(ACTIVE_QUERIES)} total — read-only)", expanded=False):
@@ -1951,4 +1979,3 @@ elif page == "queries":
                 unsafe_allow_html=True
             )
 
-st.markdown('</div>', unsafe_allow_html=True)
