@@ -35,7 +35,9 @@ def get_engine():
     """SQLAlchemy engine — use for pd.read_sql."""
     from sqlalchemy import create_engine
     if IS_POSTGRES:
-        return create_engine(DATABASE_URL)
+        # Pin the psycopg2 driver — newer SQLAlchemy defaults to psycopg (v3),
+        # which isn't installed.
+        return create_engine(DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1))
     DB_PATH.parent.mkdir(exist_ok=True)
     return create_engine(f"sqlite:///{DB_PATH}")
 
