@@ -72,8 +72,10 @@ except ImportError:
     _HAS_DB = False
 
 try:
-    from queries import QUERY_CATEGORIES, OUR_DESTINATIONS, QUERIES as ACTIVE_QUERIES
+    from queries import QUERY_CATEGORIES, OUR_DESTINATIONS, QUERIES as ACTIVE_QUERIES, signal_found
 except ImportError:
+    def signal_found(signal, content):
+        return signal in content
     ACTIVE_QUERIES    = []
     QUERY_CATEGORIES  = {}
     OUR_DESTINATIONS  = {
@@ -89,7 +91,7 @@ except ImportError:
 def _detect_destinations(text: str) -> dict:
     """Return {destination: bool} from response text."""
     tl = (str(text) if text else "").lower()
-    return {name: any(sig in tl for sig in sigs)
+    return {name: any(signal_found(sig, tl) for sig in sigs)
             for name, sigs in OUR_DESTINATIONS.items()}
 
 import os as _os
@@ -1153,7 +1155,7 @@ elif page == "citations":
 
     c1,c2,c3,c4,c5 = st.columns(5)
     kpi(c1, f"{probe_rate:.1f}", "Mention Rate",    suffix="%")
-    kpi(c2, f"{probe_cited}/60", "Cited / Queries", accent=BLUE_LIGHT)
+    kpi(c2, f"{probe_cited}/{probe_df['query'].nunique()}", "Cited / Queries", accent=BLUE_LIGHT)
 
     with c3:
         gauge_color = sent_acc
@@ -1405,7 +1407,7 @@ elif page == "citations":
               <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
                 <span style="background:{s_bg}; color:{s_col}; border-radius:999px;
                      padding:3px 12px; font-size:0.7rem; font-weight:700;">
-                  {"Cited" if cited else "Not Cited"} &nbsp;{cited_ct}/60</span>
+                  {"Cited" if cited else "Not Cited"} &nbsp;{cited_ct}/{int(agg_row.get("total_runs", 0))}</span>
                 <span style="background:{BLUE_PALE}; color:{BLUE2}; border-radius:999px;
                      padding:3px 12px; font-size:0.7rem; font-weight:700;">{src_lbl}</span>
                 <span style="background:{sent_bg_r}; color:{sent_fg_r}; border-radius:999px;

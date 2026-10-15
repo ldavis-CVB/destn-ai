@@ -19,7 +19,7 @@ try:
 except ImportError:
     _HAS_BLOB = False
 
-from queries import QUERIES, BRAND_SIGNALS, COMPETITORS, OUR_DESTINATIONS
+from queries import QUERIES, BRAND_SIGNALS, COMPETITORS, OUR_DESTINATIONS, signal_found
 from db import get_conn, execute, fetchone, PH, AI, DB_PATH, IS_POSTGRES, get_engine
 
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -110,7 +110,7 @@ def detect_brand(text: str, citations: list[str]) -> tuple[bool, list[str]]:
     """Return (mentioned, matched_signals) checking response text + citation URLs."""
     text_lower = text.lower()
     all_content = text_lower + " " + " ".join(c.lower() for c in citations)
-    matched = [s for s in BRAND_SIGNALS if s in all_content]
+    matched = [s for s in BRAND_SIGNALS if signal_found(s, all_content)]
     return bool(matched), matched
 
 
@@ -118,7 +118,7 @@ def detect_competitors(text: str, citations: list[str]) -> dict[str, bool]:
     """Return dict of competitor -> mentioned."""
     all_content = (text + " " + " ".join(citations)).lower()
     return {
-        name: any(sig in all_content for sig in signals)
+        name: any(signal_found(sig, all_content) for sig in signals)
         for name, signals in COMPETITORS.items()
     }
 
@@ -127,7 +127,7 @@ def detect_our_destinations(text: str, citations: list[str]) -> dict[str, bool]:
     """Return dict of our destination -> mentioned in response."""
     all_content = (text + " " + " ".join(citations)).lower()
     return {
-        name: any(sig in all_content for sig in signals)
+        name: any(signal_found(sig, all_content) for sig in signals)
         for name, signals in OUR_DESTINATIONS.items()
     }
 
