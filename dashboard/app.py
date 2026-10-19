@@ -2068,6 +2068,56 @@ elif page == "about":
             )
 
     with st.container(border=True):
+        card_title("How to use it")
+        st.markdown(
+            "Start with the question you need answered, then go to the tab listed. Set the "
+            "**Date range** (top right) to 30 days for a monthly check, or 60 to 90 days to see "
+            "real trends."
+        )
+        u1, u2 = st.columns(2)
+        with u1:
+            st.markdown(
+                "**1. Are we gaining or losing ground in AI?**  \n"
+                "*Overview tab.* Look at the AI Mention Rate Trend and AI Traffic Share Trend over "
+                "60 to 90 days. Judge the direction of the line, not single days; a move of a few "
+                "points over a month is more meaningful than a one-day spike.\n\n"
+                "**2. Which travel questions leave us out?**  \n"
+                "*AI Citations tab.* Pick Local Drive, Regional NC or National, then set the status "
+                "filter to *Gaps only*. Drive-market gaps are usually the easiest wins.\n\n"
+                "**3. What content should we create?**  \n"
+                "*AI Citations tab, Gap Analysis.* Click a gap to get a recommended page and action "
+                "items. Hand the top two or three to the content team each month.\n\n"
+                "**4. Who is AI recommending instead of us?**  \n"
+                "*AI Citations tab.* Check Competitor Mention Rate, then click a gap question to read "
+                "the full AI answer: which destinations it names and how it describes them."
+            )
+        with u2:
+            st.markdown(
+                "**5. Which websites shape what AI says?**  \n"
+                "*AI Citations tab, Top Websites.* These are the sites AI cites when it recommends "
+                "us. Treat them as PR, listing and partnership targets, and keep our information "
+                "on them accurate.\n\n"
+                "**6. Is AI traffic worth the effort?**  \n"
+                "*Traffic Trends tab.* The Source Performance Table compares engagement and "
+                "conversion rates by AI tool. Then use *Landing Pages* to see which pages AI sends "
+                "people to, and make sure those pages are current and have a clear next step.\n\n"
+                "**7. Did our new content work?**  \n"
+                "*Queries tab.* When you publish a page aimed at a gap, add a matching question if "
+                "one isn't already tracked. Check its cited rate on AI Citations after 2 to 4 weeks; "
+                "AI tools take time to find new content.\n\n"
+                "**8. What do we report to leadership?**  \n"
+                "Quote rates over a period, not single days: AI mention rate, questions cited out of "
+                "the total, AI sessions, engaged rate and conversions. Pair each with the date range "
+                "and the limits listed at the bottom of this page."
+            )
+        st.markdown(
+            "**A simple monthly routine (about 20 minutes):** "
+            "check the Overview trends → review new gaps on AI Citations → pick content to create "
+            "→ note new websites in Top Websites → check AI landing pages → record the headline "
+            "numbers for your report."
+        )
+
+    with st.container(border=True):
         card_title("How the results are kept fair")
         st.markdown(
             "- **Neutral questions.** No question names Wilmington or our beaches, so a mention "
