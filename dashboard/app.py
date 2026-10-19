@@ -232,7 +232,7 @@ div[data-testid="stVerticalBlock"]:has(> .stElementContainer .card-title) {{
   color: {TEXT} !important;
   font-size: 14px !important;
   font-weight: 600 !important;
-  padding: 8px 16px !important;
+  padding: 8px 13px !important;
   cursor: pointer !important;
   white-space: nowrap !important;
   overflow: visible !important;
@@ -832,10 +832,10 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Nav bar + date range ──────────────────────────────────────────────────────
-pages_def  = ["Overview", "AI Citations", "Traffic Trends", "Geography", "Landing Pages", "Queries"]
-pages_keys = ["overview", "citations", "traffic", "geo", "lp", "queries"]
+pages_def  = ["Overview", "AI Citations", "Traffic Trends", "Geography", "Landing Pages", "Queries", "About"]
+pages_keys = ["overview", "citations", "traffic", "geo", "lp", "queries", "about"]
 
-nav_col, date_col = st.columns([5, 1.5])
+nav_col, date_col = st.columns([6, 1.3])
 
 with nav_col:
     selected_label = st.radio(
@@ -1227,7 +1227,7 @@ elif page == "citations":
                         config={"displayModeBar": False}, key="sent_gauge")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    kpi(c4, str(probe_df["run_date"].nunique()), "Probe Runs", accent="#2e7d32")
+    kpi(c4, str(probe_df["run_date"].nunique()), "Probe Days (in range)", accent="#2e7d32")
     kpi(c5, str(probe_df["source"].nunique()), "AI Tools Probed", accent="#7b1fa2")
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -2011,3 +2011,107 @@ elif page == "queries":
                 unsafe_allow_html=True
             )
 
+
+
+# ==============================================================================
+# ABOUT
+# ==============================================================================
+elif page == "about":
+    st.markdown(
+        '<div class="page-header">'
+        '<div class="page-title">About destn.ai</div>'
+        '<div class="page-sub">What this dashboard measures, how it works, and how the results are kept fair</div>'
+        '</div>', unsafe_allow_html=True
+    )
+
+    with st.container(border=True):
+        card_title("What it does")
+        st.markdown(
+            "destn.ai shows how visible Wilmington and Beaches is inside AI assistants such as "
+            "ChatGPT and Perplexity. It answers two questions:\n\n"
+            "- **Do AI assistants recommend us?** Every weekday, the tool asks AI assistants "
+            f"{len(ACTIVE_QUERIES) or 120} travel questions and records whether our destinations are mentioned, which "
+            "competitors are mentioned, and which websites the AI cites.\n"
+            "- **Do AI assistants send us visitors?** Google Analytics 4 data shows how many people "
+            "arrive on wilmingtonandbeaches.com from an AI tool, which pages they land on, where they "
+            "are from, and whether they engage and convert."
+        )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        with st.container(border=True):
+            card_title("How it helps")
+            st.markdown(
+                "- **Track AI visibility over time** the way you track search rankings.\n"
+                "- **Benchmark against competitors** like Myrtle Beach, the Outer Banks and 30A.\n"
+                "- **Find content gaps.** The Gap Analysis lists questions where AI leaves us out, "
+                "with specific content to create for each.\n"
+                "- **Find PR and partnership targets.** See which websites AI tools trust and cite "
+                "when they recommend our destinations.\n"
+                "- **Measure results.** See whether AI-referred visitors engage and convert, and "
+                "which pages AI is sending them to."
+            )
+    with c2:
+        with st.container(border=True):
+            card_title("How the AI monitoring works")
+            st.markdown(
+                "- **Schedule:** runs automatically every weekday morning, plus on demand with "
+                "*Run Probe Now*.\n"
+                "- **Questions:** 60 everyday discovery questions plus 60 seasonal and event "
+                "questions, split evenly across drive markets (Charlotte, Raleigh and others), "
+                "North Carolina and national East Coast travelers. Staff can add their own on the "
+                "Queries tab.\n"
+                "- **AI tools:** Perplexity and ChatGPT, both with live web search turned on, the "
+                "way travelers use them.\n"
+                "- **What is recorded:** the full answer, whether we're mentioned, competitor "
+                "mentions, cited websites and the date."
+            )
+
+    with st.container(border=True):
+        card_title("How the results are kept fair")
+        st.markdown(
+            "- **Neutral questions.** No question names Wilmington or our beaches, so a mention "
+            "means the AI chose to recommend us on its own.\n"
+            "- **Fresh, anonymous sessions.** Every question is sent through the AI companies' "
+            "developer APIs as a brand-new conversation. There is no account history, memory or "
+            "personalization, and asking the same question every day does not train the AI or "
+            "change its future answers. Staff members' own ChatGPT or Google use has no effect.\n"
+            "- **Not asked from Wilmington.** The questions run from a cloud server, not from our "
+            "office or network, and no location is supplied to the AI, so answers are not tailored "
+            "to someone searching from Wilmington.\n"
+            "- **Repeated, not one-off.** The same questions are asked every weekday to more than "
+            "one AI tool. The dashboard reports rates across hundreds of answers, which smooths out "
+            "day-to-day randomness instead of relying on a single response.\n"
+            "- **Strict matching.** A mention only counts when a destination name appears as whole "
+            "words, so \"North Carolina beaches\" does not count as Carolina Beach and "
+            "\"destination\" does not count as Destin."
+        )
+
+    c3, c4 = st.columns(2)
+    with c3:
+        with st.container(border=True):
+            card_title("About AI errors (hallucinations)")
+            st.markdown(
+                "AI assistants sometimes state things that are wrong, such as an incorrect drive "
+                "time or an attraction that has closed. The tool does not filter or correct these, "
+                "because those answers are exactly what travelers see. Its job is to measure "
+                "accurately what AI says about us.\n\n"
+                "Every answer is saved in full. On the AI Citations tab, click any question to read "
+                "the complete response and its sources and check how we are described."
+            )
+    with c4:
+        with st.container(border=True):
+            card_title("Limits to keep in mind")
+            st.markdown(
+                "- **Answers vary.** AI responses change from day to day, so read trends, not single days.\n"
+                "- **No traveler location is simulated.** Someone actually searching from Charlotte "
+                "may see a somewhat different answer.\n"
+                "- **Perplexity answers are capped at about 350 words**, so a very long list could be "
+                "cut off before it reaches us.\n"
+                "- **A mention is not a ranking.** It means we appeared somewhere in the answer.\n"
+                "- **AI traffic is undercounted.** GA4 only credits AI when the AI tool passes along "
+                "its web address; many AI app visits show up as direct traffic.\n"
+                "- **Tone scores are approximate.** They come from a simple word-based method.\n"
+                "- **Matching changed on Oct 15, 2026.** Earlier results used looser matching that "
+                "overcounted some mentions."
+            )
