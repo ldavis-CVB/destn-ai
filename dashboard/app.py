@@ -1117,10 +1117,13 @@ elif page == "citations":
             _ps = json.loads(_ps_path.read_text()).get("sources", {}) if _ps_path.exists() else {}
         except Exception:
             _ps = {}
-        for _src, _name, _key in [("chatgpt", "ChatGPT", "OPENAI_API_KEY"),
-                                  ("claude", "Claude", "ANTHROPIC_API_KEY")]:
+        # Claude is optional (off unless a key is added); ChatGPT is expected
+        for _src, _name, _key, _required in [("chatgpt", "ChatGPT", "OPENAI_API_KEY", True),
+                                             ("claude", "Claude", "ANTHROPIC_API_KEY", False)]:
             _st = _ps.get(_src, {})
             if not _os.getenv(_key):
+                if not _required:
+                    continue
                 _err = f"{_key} is not set in Railway."
             elif _st.get("failed") and not _st.get("ok"):
                 _err = f"Every {_name} request failed on the last run: {_html.escape(_st.get('last_error', ''))}"
