@@ -1110,6 +1110,26 @@ elif page == "citations":
                 unsafe_allow_html=True,
             )
 
+        # ChatGPT probe health — failures are otherwise only visible in server logs
+        _ps_path = DB_PATH.parent / "probe_status.json"
+        _gpt_err = ""
+        if not _os.getenv("OPENAI_API_KEY"):
+            _gpt_err = "OPENAI_API_KEY is not set in Railway, so only Perplexity is being checked."
+        elif _ps_path.exists():
+            try:
+                _gpt = json.loads(_ps_path.read_text()).get("sources", {}).get("chatgpt", {})
+                if _gpt.get("failed") and not _gpt.get("ok"):
+                    _gpt_err = f"Every ChatGPT request failed on the last run: {_html.escape(_gpt.get('last_error', ''))}"
+            except Exception:
+                pass
+        if _gpt_err:
+            st.markdown(
+                f'<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; '
+                f'padding:10px 16px; font-size:0.82rem; color:#991b1b; margin-bottom:8px;">'
+                f'⚠️ <b>ChatGPT is not being checked.</b> &nbsp;{_gpt_err}</div>',
+                unsafe_allow_html=True,
+            )
+
     if probe_df.empty:
         st.stop()
 

@@ -265,6 +265,19 @@ def query_openai(query: str) -> dict:
         return {"success": False, "content": "", "citations": [], "error": str(e)}
 
 
+PROBE_STATUS_PATH = DB_PATH.parent / "probe_status.json"
+
+
+def _write_probe_status(status: dict):
+    """Per-source success/failure counts the dashboard can read."""
+    try:
+        PROBE_STATUS_PATH.parent.mkdir(exist_ok=True)
+        PROBE_STATUS_PATH.write_text(json.dumps(
+            {**status, "updated_at": datetime.utcnow().isoformat()}))
+    except Exception as e:
+        print(f"  [WARN] could not write probe status: {e}")
+
+
 def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str] = None):
     init_probe_tables()
     run_date = datetime.today().strftime("%Y-%m-%d")
@@ -282,9 +295,16 @@ def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str]
     print(f"Date: {run_date}  |  Queries: {len(all_queries)} ({len(custom)} custom)  |  Sources: {', '.join(sources)}")
     print(f"{'='*60}\n")
 
+    status = {"run_date": run_date, "openai_key_set": bool(OPENAI_API_KEY),
+              "sources": {}}
+    if "chatgpt" not in sources:
+        status["sources"]["chatgpt"] = {"ok": 0, "failed": 0,
+                                        "last_error": "OPENAI_API_KEY is not set"}
+
     for source in sources:
         print(f"\n-- {source.upper()} --")
         cited = 0
+        src_status = status["sources"][source] = {"ok": 0, "failed": 0, "last_error": ""}
         for i, query in enumerate(all_queries, 1):
             print(f"[{i:02d}/{len(all_queries)}]", end="  ")
             if source == "perplexity":
@@ -292,6 +312,12 @@ def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str]
             else:
                 result = query_openai(query)
             store_result(run_date, source, query, result)
+            if result.get("success"):
+                src_status["ok"] += 1
+            else:
+                src_status["failed"] += 1
+                src_status["last_error"] = str(result.get("error", "unknown"))[:500]
+            _write_probe_status(status)
             if result.get("success") and detect_brand(result["content"], result["citations"])[0]:
                 cited += 1
             if i < len(all_queries):
