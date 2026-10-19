@@ -10,3 +10,4 @@ textblob
 python-dotenv
 psycopg2-binary
 sqlalchemy
+anthropic

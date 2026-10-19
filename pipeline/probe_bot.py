@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
+import anthropic
 
 try:
     from textblob import TextBlob
@@ -26,6 +27,8 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY")
+CLAUDE_MODEL       = "claude-opus-5-5"
 
 
 # ── DB setup ───────────────────────────────────────────────────────────────────
@@ -278,6 +281,49 @@ def _write_probe_status(status: dict):
         print(f"  [WARN] could not write probe status: {e}")
 
 
+def query_claude(query: str) -> dict:
+    """Ask Claude with web search and return parsed result."""
+    if not ANTHROPIC_API_KEY:
+        return {"success": False, "content": "", "citations": [], "error": "No Anthropic key"}
+    try:
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        messages = [{"role": "user", "content": query}]
+        # Web search runs server-side; a long search turn can pause and must be re-sent
+        for _ in range(5):
+            response = client.beta.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=16000,
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
+                tools=[{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}],
+                messages=messages,
+            )
+            if response.stop_reason != "pause_turn":
+                break
+            messages = [
+                {"role": "user", "content": query},
+                {"role": "assistant", "content": response.content},
+            ]
+        if response.stop_reason == "refusal":
+            return {"success": False, "content": "", "citations": [], "error": "Claude declined the query"}
+
+        content   = ""
+        citations = []
+        for block in response.content:
+            if block.type == "text":
+                content += block.text
+                for cite in block.citations or []:
+                    url = getattr(cite, "url", None)
+                    if url and url not in citations:
+                        citations.append(url)
+        return {"success": True, "content": content, "citations": citations}
+    except anthropic.APIError as e:
+        return {"success": False, "content": "", "citations": [], "error": str(e)}
+
+
+SOURCE_KEYS = {"chatgpt": "OPENAI_API_KEY", "claude": "ANTHROPIC_API_KEY"}
+
+
 def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str] = None):
     init_probe_tables()
     run_date = datetime.today().strftime("%Y-%m-%d")
@@ -288,18 +334,22 @@ def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str]
     seen = set(base)
     all_queries = list(base) + [q for q in custom if q not in seen]
 
-    sources  = sources or (["perplexity", "chatgpt"] if OPENAI_API_KEY else ["perplexity"])
+    if not sources:
+        sources = ["perplexity"]
+        if OPENAI_API_KEY:
+            sources.append("chatgpt")
+        if ANTHROPIC_API_KEY:
+            sources.append("claude")
 
     print(f"\n{'='*60}")
     print(f"AI Probe Bot - Wilmington & Beaches CVB")
     print(f"Date: {run_date}  |  Queries: {len(all_queries)} ({len(custom)} custom)  |  Sources: {', '.join(sources)}")
     print(f"{'='*60}\n")
 
-    status = {"run_date": run_date, "openai_key_set": bool(OPENAI_API_KEY),
-              "sources": {}}
-    if "chatgpt" not in sources:
-        status["sources"]["chatgpt"] = {"ok": 0, "failed": 0,
-                                        "last_error": "OPENAI_API_KEY is not set"}
+    status = {"run_date": run_date, "sources": {}}
+    for src, key in SOURCE_KEYS.items():
+        if src not in sources:
+            status["sources"][src] = {"ok": 0, "failed": 0, "last_error": f"{key} is not set"}
 
     for source in sources:
         print(f"\n-- {source.upper()} --")
@@ -309,6 +359,8 @@ def run_probes(queries: list[str] = None, delay: float = 3.0, sources: list[str]
             print(f"[{i:02d}/{len(all_queries)}]", end="  ")
             if source == "perplexity":
                 result = query_perplexity(query)
+            elif source == "claude":
+                result = query_claude(query)
             else:
                 result = query_openai(query)
             store_result(run_date, source, query, result)

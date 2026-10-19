@@ -1037,7 +1037,8 @@ elif page == "citations":
     # ── Run status bar ────────────────────────────────────────────────────────
     _today_count  = _today_probe_count()
     _run_info     = _probe_run_info()
-    _expected     = len(ACTIVE_QUERIES) * 2 if ACTIVE_QUERIES else 120  # ×2 sources
+    _n_sources    = 1 + bool(_os.getenv("OPENAI_API_KEY")) + bool(_os.getenv("ANTHROPIC_API_KEY"))
+    _expected     = (len(ACTIVE_QUERIES) or 120) * _n_sources
     _pct          = min(int(_today_count / _expected * 100), 100)
     _still_running = _today_count < _expected
 
@@ -1110,23 +1111,25 @@ elif page == "citations":
                 unsafe_allow_html=True,
             )
 
-        # ChatGPT probe health — failures are otherwise only visible in server logs
+        # ChatGPT / Claude probe health — failures are otherwise only visible in server logs
         _ps_path = DB_PATH.parent / "probe_status.json"
-        _gpt_err = ""
-        if not _os.getenv("OPENAI_API_KEY"):
-            _gpt_err = "OPENAI_API_KEY is not set in Railway, so only Perplexity is being checked."
-        elif _ps_path.exists():
-            try:
-                _gpt = json.loads(_ps_path.read_text()).get("sources", {}).get("chatgpt", {})
-                if _gpt.get("failed") and not _gpt.get("ok"):
-                    _gpt_err = f"Every ChatGPT request failed on the last run: {_html.escape(_gpt.get('last_error', ''))}"
-            except Exception:
-                pass
-        if _gpt_err:
+        try:
+            _ps = json.loads(_ps_path.read_text()).get("sources", {}) if _ps_path.exists() else {}
+        except Exception:
+            _ps = {}
+        for _src, _name, _key in [("chatgpt", "ChatGPT", "OPENAI_API_KEY"),
+                                  ("claude", "Claude", "ANTHROPIC_API_KEY")]:
+            _st = _ps.get(_src, {})
+            if not _os.getenv(_key):
+                _err = f"{_key} is not set in Railway."
+            elif _st.get("failed") and not _st.get("ok"):
+                _err = f"Every {_name} request failed on the last run: {_html.escape(_st.get('last_error', ''))}"
+            else:
+                continue
             st.markdown(
                 f'<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; '
                 f'padding:10px 16px; font-size:0.82rem; color:#991b1b; margin-bottom:8px;">'
-                f'⚠️ <b>ChatGPT is not being checked.</b> &nbsp;{_gpt_err}</div>',
+                f'⚠️ <b>{_name} is not being checked.</b> &nbsp;{_err}</div>',
                 unsafe_allow_html=True,
             )
 
@@ -1395,7 +1398,7 @@ elif page == "citations":
             cited    = int(agg_row.get("cited_count", 0)) > 0
             cited_ct = int(agg_row.get("cited_count", 0))
             total_ct = int(agg_row.get("total_runs", 1))
-            src_lbl  = "Perplexity" if raw_row.get("source") == "perplexity" else "ChatGPT"
+            src_lbl  = {"perplexity": "Perplexity", "claude": "Claude"}.get(raw_row.get("source"), "ChatGPT")
             def _safe_list(val):
                 if val is None: return []
                 if isinstance(val, list): return val
